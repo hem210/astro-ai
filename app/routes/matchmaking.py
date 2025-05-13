@@ -16,7 +16,7 @@ async def ashtakoota_score(
 ) -> AshtakootaMatchScore:
     groom_coords = get_coordinates(groom_birth_details.birth_place)
     if not groom_coords:
-        raise HTTPException(status_code=400, detail="Invalid birth place name of groom")
+        print("Invalid groom birth place name, using default coordinates")
     
     groom_birth_chart = BirthChart(
         day=groom_birth_details.day,
@@ -25,15 +25,15 @@ async def ashtakoota_score(
         hour=groom_birth_details.hour,
         minute=groom_birth_details.minute,
         second=groom_birth_details.second,
-        latitude=groom_coords["latitude"],
-        longitude=groom_coords["longitude"],
+        latitude=groom_coords.get("latitude", 23.03),
+        longitude=groom_coords.get("longitude", 72.62),
     )
 
     groom_kundali_chart = planets_calculation(groom_birth_chart)
 
     bride_coords = get_coordinates(bride_birth_details.birth_place)
     if not bride_coords:
-        raise HTTPException(status_code=400, detail="Invalid birth place name of bride")
+        print("Invalid bride birth place name, using default coordinates")
     
     bride_birth_chart = BirthChart(
         day=bride_birth_details.day,
@@ -42,8 +42,8 @@ async def ashtakoota_score(
         hour=bride_birth_details.hour,
         minute=bride_birth_details.minute,
         second=bride_birth_details.second,
-        latitude=bride_coords["latitude"],
-        longitude=bride_coords["longitude"],
+        latitude=bride_coords.get("latitude", 23.03),
+        longitude=bride_coords.get("longitude", 72.62),
     )
 
     bride_kundali_chart = planets_calculation(bride_birth_chart)
@@ -71,7 +71,7 @@ async def ashtakoota_score(
 ):
     groom_coords = get_coordinates(groom_birth_details.birth_place)
     if not groom_coords:
-        raise HTTPException(status_code=400, detail="Invalid birth place name of groom")
+        print("Invalid birth place name, using default coordinates")
     
     groom_birth_chart = BirthChart(
         day=groom_birth_details.day,
@@ -80,15 +80,15 @@ async def ashtakoota_score(
         hour=groom_birth_details.hour,
         minute=groom_birth_details.minute,
         second=groom_birth_details.second,
-        latitude=groom_coords["latitude"],
-        longitude=groom_coords["longitude"],
+        latitude=groom_coords.get("latitude", 23.03),
+        longitude=groom_coords.get("longitude", 72.62),
     )
 
     groom_kundali_chart = planets_calculation(groom_birth_chart)
 
     bride_coords = get_coordinates(bride_birth_details.birth_place)
     if not bride_coords:
-        raise HTTPException(status_code=400, detail="Invalid birth place name of bride")
+        print("Invalid bride birth place name, using default coordinates")
     
     bride_birth_chart = BirthChart(
         day=bride_birth_details.day,
@@ -97,8 +97,8 @@ async def ashtakoota_score(
         hour=bride_birth_details.hour,
         minute=bride_birth_details.minute,
         second=bride_birth_details.second,
-        latitude=bride_coords["latitude"],
-        longitude=bride_coords["longitude"],
+        latitude=bride_coords.get("latitude", 23.03),
+        longitude=bride_coords.get("longitude", 72.62),
     )
 
     bride_kundali_chart = planets_calculation(bride_birth_chart)
