@@ -1,29 +1,36 @@
 import swisseph as swe
 from datetime import datetime, timedelta
 from app.models import BirthChart, KundaliChart, PlanetData
+from app.config import ZODIACS, PLANETS, NAKSHATRAS
 
 # Set the ayanamsa to Lahiri (sidereal)
 swe.set_sid_mode(swe.SIDM_LAHIRI)
 
 # Function to calculate Julian Day
 def julian_day(year, month, day, hour=0, minute=0, second=0, tz_offset=5.5):
+    swe.set_ephe_path('./eph')
+    swe.set_sid_mode(swe.SIDM_LAHIRI)
     dt = datetime(year, month, day, hour, minute, second) - timedelta(hours=tz_offset)
-    jd = swe.julday(dt.year, dt.month, dt.day, (hour + minute/60 + second/3600), swe.GREG_CAL)
+    jd = swe.julday(dt.year, dt.month, dt.day, (dt.hour + dt.minute/60 + dt.second/3600), swe.GREG_CAL)
+    swe.close()
     return jd
 
-# Function to calculate planetary positions
-def calculate_planetary_positions(jd, latitude, longitude):
+def calculate_ascendant(jd, latitude, longitude):
+    swe.set_ephe_path('./eph')
+    swe.set_sid_mode(swe.SIDM_LAHIRI)
+    flags = swe.FLG_SIDEREAL
+    cusps, ascmc = swe.houses_ex(jd, latitude, longitude, b'W', flags)  # A is for Placidus system, W is for Whole system
+    swe.close()
+    return ascmc[0]
 
-    # Set the observer's location (topocentric)
-    swe.set_topo(longitude, latitude, 53)
+def calculate_planetary_positions(jd):
+    swe.set_ephe_path('./eph')
+    swe.set_sid_mode(swe.SIDM_LAHIRI)
 
     # List of planets including Rahu and Ketu (mean node for Rahu)
-    planets = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'rahu', 'ketu']
     positions = {}
-    flags = swe.FLG_SWIEPH | swe.FLG_SIDEREAL
-    # flags = swe.FLG_SIDEREAL | swe.FLG_TOPOCTR | swe.FLG_SWIEPH
-    # print(flags)
-    for planet in planets:
+    flags = swe.FLG_SIDEREAL
+    for planet in PLANETS:
         if planet == 'rahu':
             # Calculate Rahu (mean node)
             node_pos = swe.calc_ut(jd, swe.MEAN_NODE, flags)[0][0]
@@ -36,64 +43,32 @@ def calculate_planetary_positions(jd, latitude, longitude):
             planet_id = getattr(swe, planet.upper())
             position = swe.calc_ut(jd, planet_id, flags)[0][0]
             positions[planet] = position
+    
+    swe.close()
 
     return positions
 
-# Function to calculate the Ascendant (Lagna)
-def calculate_ascendant(jd, latitude, longitude):
-    # print("calculating ascendant")
-    flags = swe.FLG_SIDEREAL
-    # print(swe.houses_ex(jd, latitude, longitude, b'W', flags))
-    asc = swe.houses_ex(jd, latitude, longitude, b'W', swe.FLG_SIDEREAL)[1][0]  # A is for Placidus system, W is for Whole system
-    return asc
-    # return 24.2
+def determine_house(ascendant, pos):
+    asc_house = int(ascendant / 30) + 1
+    pl_sign = int(pos/30) + 1
+    pl_house = (pl_sign - asc_house + 12) % 12 + 1
+    return {"house": pl_house, "deviate": pos % 30}
 
-# Function to determine which house each planet is in
-def determine_houses(ascendant, positions):
-    houses = {}
-    
-    for planet, pos in positions.items():
-        # Calculate the relative position of the planet from the ascendant
-        # relative_pos = (pos - ascendant) % 360
-        
-        # Determine the house based on relative position (each house is 30 degrees)
-        house = int(pos / 30) + 1
-        if pos>30:
-            deviate = pos - (house-1)*30
-        else:
-            deviate = pos
-        # {planet: {"house": house, "deviate": deviate}}
-        houses[planet] = {"house": house, "deviate": deviate}
-    return houses
-
-def get_zodiac_sign(longitude):
-    # List of zodiac signs in order
-    zodiac_signs = [
-        "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
-    ]
-    
-    # Each zodiac sign covers 30 degrees, so divide the longitude by 30 to find the sign
-    sign_index = int(longitude // 30)  # Integer division to determine the sign
-    sign_degrees = longitude % 30      # Remainder gives the degrees within the sign
-    
-    return zodiac_signs[sign_index]
+def determine_zodiac(pos):
+    return ZODIACS[int(pos/30) + 1]["name"]
 
 # Function to calculate Nakshatra
 def calculate_nakshatra(jd):
-    # Moon position
-    flags = swe.FLG_SIDEREAL | swe.FLG_TOPOCTR | swe.FLG_SWIEPH
+    swe.set_ephe_path('./eph')
+    swe.set_sid_mode(swe.SIDM_LAHIRI)
+    flags = swe.FLG_SIDEREAL
+
     moon_pos = swe.calc_ut(jd, swe.MOON, flags)[0][0]
     # Nakshatra calculation
     nakshatra_index = int(moon_pos / 13.33333)  # 360 degrees / 27 Nakshatras
-    nakshatras = [
-        'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra', 
-        'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni',
-        'Hasta', 'Chitra', 'Swati', 'Visakha', 'Anuradha', 'Jyeshtha', 
-        'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishta', 
-        'Shatabhisha', 'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
-    ]
-    nakshatra = nakshatras[nakshatra_index % 27]
+    nakshatra = NAKSHATRAS[nakshatra_index % 27]["name"]
+
+    swe.close()
     return nakshatra
 
 def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
@@ -107,17 +82,17 @@ def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
         birth_chart.timezone
     )
 
-    positions = calculate_planetary_positions(jd, birth_chart.latitude, birth_chart.longitude)
+    positions = calculate_planetary_positions(jd)
     ascendant = calculate_ascendant(jd, birth_chart.latitude, birth_chart.longitude)
-    houses = determine_houses(ascendant, positions)
     nakshatra = calculate_nakshatra(jd)
 
     planets_data = {}
 
     for planet, pos in positions.items():
-        zodiac = get_zodiac_sign(pos)
-        house = houses[planet]["house"]
-        deviation = houses[planet]["deviate"]
+        house_obj = determine_house(ascendant, pos)
+        house = house_obj["house"]
+        deviation = house_obj["deviate"]
+        zodiac = determine_zodiac(pos)
         planets_data[planet] = PlanetData(name=planet, position=pos, house=house, zodiac=zodiac, deviation=deviation)
 
     return KundaliChart(

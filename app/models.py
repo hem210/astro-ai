@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict
 
 class APIBirthDetails(BaseModel):
     day: int
     month: int
-    year: int
+    year: int = Field(..., ge=1800, le=2399)
     hour: int
     minute: int
     second: int
