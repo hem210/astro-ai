@@ -66,7 +66,7 @@ def calculate_nakshatra(jd):
     moon_pos = swe.calc_ut(jd, swe.MOON, flags)[0][0]
     # Nakshatra calculation
     nakshatra_index = int(moon_pos / 13.33333)  # 360 degrees / 27 Nakshatras
-    nakshatra = NAKSHATRAS[nakshatra_index % 27]["name"]
+    nakshatra = NAKSHATRAS[(nakshatra_index % 27) + 1]["name"]
 
     swe.close()
     return nakshatra
