@@ -21,7 +21,18 @@ Swagger UI link: https://astro-ai-rffv.onrender.com/docs
 
 Note: Since the project is hosted on Render, it scales down during inactivity. So, the first request might take around 1-2 minutes to come back.
 
-## Sample Results
+## Screenshots
+
+### Gradio App
+
+1. Birth Details Form
+![alt text](app/docs_assets/gradio_birth_info_input.png)
+
+2. Chat Interface
+![alt text](app/docs_assets/gradio_chat_interface.png)
+
+
+### API Endpoints (Older Version)
 
 1. `/kundali`
 ![alt text](app/docs_assets/kundali_api_response.png)
@@ -37,7 +48,9 @@ Note: Since the project is hosted on Render, it scales down during inactivity. S
 
 ## Installing and Running Locally
 
-Run the following commands in your terminal to setu things up. By default the backend will be running at: http://127.0.0.1:8000
+You can also run the Gradio app locally by following the instructions in [RUN_GRADIO.md](RUN_GRADIO.md).
+
+Run the following commands in your terminal to set things up. By default the backend will be running at: http://127.0.0.1:8000. This is the older version of the API endpoints.
 
 Also, this application was compiled with Python v3.11.9. So any version equal or above it will be fine.
 ```
@@ -46,7 +59,7 @@ cd astro-ai
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.api.main:app --reload
 ```
 
 ## Features & Capabilities
@@ -55,14 +68,19 @@ uvicorn app.main:app --reload
 
 - **Kundali Generation**: Computes detailed natal charts, including ascendants and planetary positions across houses.
 
+- **Agentic RAG System**: Built with LangGraph for multi-step reasoning and tool orchestration. The agent autonomously retrieves relevant astrological interpretations from a comprehensive knowledge base (291 entries covering planet-house, planet-sign, ascendant, nakshatra, and conjunction combinations) and synthesizes them into personalized readings.
+
+- **Tool-Based Agent Architecture**: Implements a conversational AI agent that uses tools to generate charts and query the knowledge base, making intelligent decisions about when and what to retrieve based on user queries.
+
+- **Multi-LLM Support**: Supports multiple language models (Gemini, Claude) via LiteLLM, allowing flexible model selection and load balancing.
+
+- **Structured Knowledge Retrieval**: Maps natural language queries to structured astrological concepts, enabling precise context retrieval from the knowledge base without requiring semantic search.
+
+- **Conversational Interface**: Gradio-based chat interface for interactive astrology consultations with conversation history and context awareness.
+
 - **Matchmaking Logic**: Implements classical Ashtakoota matching with an 8-dimension scoring system for compatibility.
 
-- **LLM-Based Explanation**: Core feature that uses a language model to explain the Ashtakoota score in plain language, making astrological insights accessible to non-experts.
+- **LLM-Based Explanation**: Uses language models to explain Ashtakoota scores in plain language, making astrological insights accessible to non-experts.
 
 - **Personalized Match Suggestions**: Recommends compatible Rashi-Nakshatra pairs along with the Name letters for individuals based on traditional compatibility rules. This helps in easy identification of people based on names for compatibility (assuming people are named based on the appropriate letters of Rashi/Nakshatra).
 
-## Future Improvements
-
-- **Fix for Lagna (Ascendant) Calculation**: The current method for calculating the ascendant has some imprecision, which can affect the accuracy of house placements in the Kundali. Refining this logic will improve the accuracy of results.
-
-- **Daily Personalized Suggestions**: Plan to add a feature that provides daily insights based on the user's current Mahadasha and Antardasha, helping users make day-to-day decisions guided by Vedic astrology.
