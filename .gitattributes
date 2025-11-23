@@ -1,0 +1,2 @@
+app/docs_assets/*.png filter=lfs diff=lfs merge=lfs -text
+eph/*.se1 filter=lfs diff=lfs merge=lfs -text
