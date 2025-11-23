@@ -2,24 +2,9 @@
 
 ## Overview
 
-Astro-AI aims at simplifying Indian astrology-based matchmaking and charting, using traditional calculations enhanced with LLM-based natural language explanations for better accessibility.
-It's a FastAPI-based REST API framework which exposes APIs to generate readings and their explanation.
+Astro-AI is an intelligent Vedic astrology chatbot platform that combines traditional astrological calculations with modern AI-powered natural language understanding. The system uses an agentic RAG (Retrieval-Augmented Generation) architecture built with LangGraph to provide personalized astrological readings through conversational interactions.
 
-## API Endpoints
-
-1. `/kundali`: Generates a detailed Kundali (natal chart), including planetary positions and house placements, based on date, time, and place of birth.
-
-2. `/ashtakoota-score`: Computes the Ashtakoota score for two individuals, covering all 8 compatibility dimensions used in Vedic matchmaking.
-
-3. `/my-perfect-match`: Returns top compatible Rashi-Nakshatra-NameLetters with score > 22 (which is deemed compatible as per Vedic astrology) for an individual, based on traditional Indian matchmaking principles.
-
-4. `/ashtakoota-score-explain` (LLM-enhaced): Uses LLM Agents to provide a natural language explanation of the Ashtakoota score — breaking down how each dimension contributes and what it means for a relationship. This is the core feature aimed at demystifying traditional astrology.
-
-## It's Live! Try it yourself
-
-Swagger UI link: https://astro-ai-rffv.onrender.com/docs
-
-Note: Since the project is hosted on Render, it scales down during inactivity. So, the first request might take around 1-2 minutes to come back.
+The platform features a FastAPI backend with REST API endpoints for programmatic access, and a Gradio-based conversational interface for interactive consultations. It leverages Swiss Ephemeris for accurate planetary calculations and maintains a comprehensive knowledge base of Vedic astrology interpretations, enabling the AI agent to provide contextually relevant and personalized insights.
 
 ## Screenshots
 
@@ -30,21 +15,6 @@ Note: Since the project is hosted on Render, it scales down during inactivity. S
 
 2. Chat Interface
 ![alt text](app/docs_assets/gradio_chat_interface.png)
-
-
-### API Endpoints (Older Version)
-
-1. `/kundali`
-![alt text](app/docs_assets/kundali_api_response.png)
-
-2. `/ashtakoota-score`
-![alt text](app/docs_assets/ashtakoota_score_api_response.png)
-
-3. `/my-perfect-match`
-![alt text](app/docs_assets/my_perfect_match_api_response.png)
-
-4. `/ashtakoota-score-explain`
-![alt text](app/docs_assets/ashtakoota_score_explain_api_response.png)
 
 ## Installing and Running Locally
 
@@ -84,3 +54,26 @@ uvicorn app.api.main:app --reload
 
 - **Personalized Match Suggestions**: Recommends compatible Rashi-Nakshatra pairs along with the Name letters for individuals based on traditional compatibility rules. This helps in easy identification of people based on names for compatibility (assuming people are named based on the appropriate letters of Rashi/Nakshatra).
 
+## API Endpoints (Older Version)
+
+1. `/kundali`: Generates a detailed Kundali (natal chart), including planetary positions and house placements, based on date, time, and place of birth.
+
+2. `/ashtakoota-score`: Computes the Ashtakoota score for two individuals, covering all 8 compatibility dimensions used in Vedic matchmaking.
+
+3. `/my-perfect-match`: Returns top compatible Rashi-Nakshatra-NameLetters with score > 22 (which is deemed compatible as per Vedic astrology) for an individual, based on traditional Indian matchmaking principles.
+
+4. `/ashtakoota-score-explain` (LLM-enhaced): Uses LLM Agents to provide a natural language explanation of the Ashtakoota score — breaking down how each dimension contributes and what it means for a relationship. This is the core feature aimed at demystifying traditional astrology.
+
+### Screenshots (Older Version)
+
+1. `/kundali`
+![alt text](app/docs_assets/kundali_api_response.png)
+
+2. `/ashtakoota-score`
+![alt text](app/docs_assets/ashtakoota_score_api_response.png)
+
+3. `/my-perfect-match`
+![alt text](app/docs_assets/my_perfect_match_api_response.png)
+
+4. `/ashtakoota-score-explain`
+![alt text](app/docs_assets/ashtakoota_score_explain_api_response.png)
