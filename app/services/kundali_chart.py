@@ -29,24 +29,34 @@ def calculate_planetary_positions(jd):
 
     # List of planets including Rahu and Ketu (mean node for Rahu)
     positions = {}
+    retrograde_status = {}
     flags = swe.FLG_SIDEREAL
     for planet in PLANETS:
         if planet == 'rahu':
             # Calculate Rahu (mean node)
             node_pos = swe.calc_ut(jd, swe.MEAN_NODE, flags)[0][0]
             positions['rahu'] = node_pos
+            # Rahu is always retrograde (moves backwards)
+            retrograde_status['rahu'] = True
+            
             # Calculate Ketu (180 degrees opposite to Rahu)
             positions['ketu'] = (node_pos + 180) % 360
+            # Ketu is always retrograde (opposite of Rahu, always moves backwards)
+            retrograde_status['ketu'] = True
         elif planet == 'ketu':
             pass
         else:
             planet_id = getattr(swe, planet.upper())
-            position = swe.calc_ut(jd, planet_id, flags)[0][0]
+            planet_result = swe.calc_ut(jd, planet_id, flags)
+            position = planet_result[0][0]
+            speed = planet_result[0][3]  # Speed in longitude (degrees per day)
             positions[planet] = position
+            # Planet is retrograde if speed is negative
+            retrograde_status[planet] = speed < 0
     
     swe.close()
 
-    return positions
+    return positions, retrograde_status
 
 def determine_house(ascendant, pos):
     asc_house = int(ascendant / 30) + 1
@@ -82,8 +92,9 @@ def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
         birth_chart.timezone
     )
 
-    positions = calculate_planetary_positions(jd)
+    positions, retrograde_status = calculate_planetary_positions(jd)
     ascendant = calculate_ascendant(jd, birth_chart.latitude, birth_chart.longitude)
+    ascendant_sign = determine_zodiac(ascendant)
     nakshatra = calculate_nakshatra(jd)
 
     planets_data = {}
@@ -93,10 +104,19 @@ def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
         house = house_obj["house"]
         deviation = house_obj["deviate"]
         zodiac = determine_zodiac(pos)
-        planets_data[planet] = PlanetData(name=planet, position=pos, house=house, zodiac=zodiac, deviation=deviation)
+        retrograde = retrograde_status.get(planet, False)
+        planets_data[planet] = PlanetData(
+            name=planet, 
+            position=pos, 
+            house=house, 
+            zodiac=zodiac, 
+            deviation=deviation,
+            retrograde=retrograde
+        )
 
     return KundaliChart(
         ascendant=ascendant,
+        ascendant_sign=ascendant_sign,
         nakshatra=nakshatra,
         planets=planets_data,
         moon_zodiac=planets_data['moon'].zodiac,
@@ -107,10 +127,10 @@ def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
 if __name__ == "__main__":
     birth_chart = BirthChart(
         year = 2025,
-        month = 5,
-        day = 13,
-        hour = 8,
-        minute = 41,
+        month = 11,
+        day = 23,
+        hour = 14,
+        minute = 4,
         second = 0,
         timezone = 5.5, # GMT+5:30
         latitude = 23.03,  # ahmedabad

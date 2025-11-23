@@ -27,9 +27,11 @@ class PlanetData(BaseModel):
     house: int
     zodiac: str
     deviation: float
+    retrograde: bool
 
 class KundaliChart(BaseModel):
     ascendant: float
+    ascendant_sign: str
     planets: Dict[str, PlanetData]
     moon_zodiac: str
     moon_deviate: float
