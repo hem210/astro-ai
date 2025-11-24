@@ -8,10 +8,4 @@ from app.gradio_app import create_gradio_interface
 
 # Create and launch the Gradio interface
 demo = create_gradio_interface()
-
-if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1", server_port=7860, ssr_mode=False, share=False)
-else:
-    # For HuggingFace Spaces, the app is accessed via the demo object
-    demo.launch()
-
+demo.launch()
