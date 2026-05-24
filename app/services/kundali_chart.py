@@ -120,7 +120,7 @@ def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
         nakshatra=nakshatra,
         planets=planets_data,
         moon_zodiac=planets_data['moon'].zodiac,
-        moon_deviate=planets_data['moon'].deviation
+        moon_deviate=planets_data['moon'].deviation,
     )
 
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     
 
     details = planets_calculation(birth_chart=birth_chart)
-    print(details)
+    print(details.model_dump_json())
     swe.close()
     
 # def calculate_ascendant(jd, latitude, longitude):

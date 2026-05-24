@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Dict
+from datetime import datetime
+from typing import Any, Dict, List
+
+from pydantic import BaseModel, Field, model_serializer
 
 class APIBirthDetails(BaseModel):
     day: int
@@ -21,21 +23,59 @@ class BirthChart(BaseModel):
     latitude: float = 23.03 # ahmedabad, gujarat
     longitude: float = 72.62 # ahmedabad, gujarat
 
+class DashaPeriod(BaseModel):
+    lord: str
+    start: datetime
+    end: datetime
+    duration_years: float
+    duration_days: float
+
+
+class MahadashaWithAntardashas(BaseModel):
+    mahadasha: DashaPeriod
+    antardashas: List[DashaPeriod]
+
+
+class VimshottariChart(BaseModel):
+    mahadashas: List[MahadashaWithAntardashas]
+
+
 class PlanetData(BaseModel):
     name: str
-    position: float
+    position: float  # Internal use only - not exposed in API responses
     house: int
     zodiac: str
-    deviation: float
+    deviation: float  # Internal use only - not exposed in API responses
     retrograde: bool
+    
+    @model_serializer
+    def serialize_model(self) -> Dict[str, Any]:
+        """Exclude position and deviation from serialization."""
+        return {
+            "name": self.name,
+            "house": self.house,
+            "zodiac": self.zodiac,
+            "retrograde": self.retrograde
+        }
 
 class KundaliChart(BaseModel):
     ascendant: float
     ascendant_sign: str
     planets: Dict[str, PlanetData]
     moon_zodiac: str
-    moon_deviate: float
+    moon_deviate: float  # Internal use only - not exposed in API responses
     nakshatra: str
+
+    @model_serializer
+    def serialize_model(self) -> Dict[str, Any]:
+        """Exclude moon_deviate from serialization."""
+        return {
+            "ascendant": self.ascendant,
+            "ascendant_sign": self.ascendant_sign,
+            "planets": {k: planet.model_dump() for k, planet in self.planets.items()},
+            "moon_zodiac": self.moon_zodiac,
+            "nakshatra": self.nakshatra,
+        }
 
 class AshtakootaProfile(BaseModel):
     moon_zodiac: str
