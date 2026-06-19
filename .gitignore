@@ -177,3 +177,5 @@ cython_debug/
 
 # Application logs
 logs/
+
+docs/
