@@ -6,7 +6,7 @@ for astrological queries.
 """
 
 from typing import Optional, List
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage
 from langchain_litellm import ChatLiteLLM
 from app.services.agent.config import (
     get_model_config,
@@ -90,6 +90,7 @@ class AstrologyAgent:
         initial_state: AgentState = {
             "messages": messages,
             "kundali_data": None,
+            "birth_context": None,
         }
 
         # A fresh callback instance per invocation keeps the turn counter accurate
@@ -133,6 +134,7 @@ class AstrologyAgent:
         initial_state: AgentState = {
             "messages": messages,
             "kundali_data": None,
+            "birth_context": None,
         }
 
         for chunk in self.graph.stream(
@@ -140,3 +142,48 @@ class AstrologyAgent:
             config={"callbacks": [AstroLoggerCallback()]},
         ):
             yield chunk
+
+    def stream_tokens(
+        self,
+        query: str,
+        conversation_history: Optional[List] = None,
+        birth_context: Optional[str] = None,
+    ):
+        """
+        Yield raw text tokens from the agent's final response, suitable for SSE.
+
+        Skips tool-call chunks and intermediate node outputs — only yields
+        content tokens from the agent node's AI response.
+        """
+        messages = self._build_messages(query, conversation_history)
+
+        initial_state: AgentState = {
+            "messages": messages,
+            "kundali_data": None,
+            "birth_context": birth_context,
+        }
+
+        for chunk, metadata in self.graph.stream(
+            initial_state,
+            config={"callbacks": [AstroLoggerCallback()]},
+            stream_mode="messages",
+        ):
+            if (
+                isinstance(chunk, AIMessageChunk)
+                and chunk.content
+                and not getattr(chunk, "tool_call_chunks", None)
+                and metadata.get("langgraph_node") == "agent"
+            ):
+                yield chunk.content
+
+    def generate_title(self, first_message: str) -> str:
+        """Generate a short conversation title from the first user message."""
+        response = self.llm.invoke([
+            HumanMessage(
+                content=(
+                    f'Generate a short conversation title (5 words max) for this message: '
+                    f'"{first_message}"\nReturn only the title, nothing else.'
+                )
+            )
+        ])
+        return str(response.content).strip()[:100]

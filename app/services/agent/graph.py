@@ -26,6 +26,7 @@ class AgentState(TypedDict):
     """State schema for the astrology agent."""
     messages: Annotated[List[BaseMessage], add_messages]
     kundali_data: Optional[Dict[str, Any]]
+    birth_context: Optional[str]
 
 
 def create_agent_graph(
@@ -53,15 +54,15 @@ def create_agent_graph(
         """Agent node that processes messages and decides on tool calls."""
         messages = state["messages"]
 
-        # Check if system message is already at the beginning of the messages
-        # Only add system message if it's not already present at the start
         has_system_message = messages and isinstance(messages[0], SystemMessage)
 
-        # Prepare messages with system prompt
         if not has_system_message:
-            # Inject today's date so the agent can compute date ranges for dasha queries
             today_str = date.today().strftime("%B %d, %Y")
-            system_content = SYSTEM_PROMPT + f"\n\n### TODAY'S DATE\nToday is {today_str}."
+            system_content = SYSTEM_PROMPT
+            birth_context = state.get("birth_context")
+            if birth_context:
+                system_content += f"\n\n### USER'S BIRTH PROFILE\n{birth_context}"
+            system_content += f"\n\n### TODAY'S DATE\nToday is {today_str}."
             messages_with_system = [SystemMessage(content=system_content)] + messages
         else:
             messages_with_system = messages

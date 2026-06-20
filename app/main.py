@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import kundali, matchmaking
-from app.routes import auth, profile
+from app.routes import auth, profile, conversations
 
 app = FastAPI(title="Astro AI")
 
@@ -32,6 +32,7 @@ app.include_router(kundali.router)
 app.include_router(matchmaking.router)
 app.include_router(auth.router)
 app.include_router(profile.router)
+app.include_router(conversations.router)
 
 
 @app.get("/")
