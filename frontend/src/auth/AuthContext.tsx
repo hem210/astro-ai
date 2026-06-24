@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, setAccessToken } from '@/api/client'
 
@@ -21,9 +21,16 @@ const AuthContext = createContext<AuthState | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const didRunRef = useRef(false)
 
-  // On app load: try to restore session from the HttpOnly refresh cookie
+  // On app load: try to restore session from the HttpOnly refresh cookie.
+  // Guarded against StrictMode's dev-only double-invoke — firing this twice
+  // would send two concurrent /auth/refresh calls against the same single-use
+  // refresh token, and the loser of that race would 401 and log the user out.
   useEffect(() => {
+    if (didRunRef.current) return
+    didRunRef.current = true
+
     api.post<{ access_token: string }>('/auth/refresh')
       .then(({ data }) => {
         setAccessToken(data.access_token)

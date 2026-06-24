@@ -22,7 +22,7 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config
 
-    if (error.response?.status === 401 && !original._retried) {
+    if (error.response?.status === 401 && !original._retried && original.url !== '/auth/refresh') {
       original._retried = true
       try {
         const { data } = await api.post<{ access_token: string }>('/auth/refresh')
