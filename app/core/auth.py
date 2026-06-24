@@ -12,8 +12,9 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
@@ -23,7 +24,7 @@ ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_password_hasher = PasswordHasher()
 
 
 # ---------------------------------------------------------------------------
@@ -31,11 +32,14 @@ _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ---------------------------------------------------------------------------
 
 def hash_password(plain: str) -> str:
-    return _pwd_context.hash(plain)
+    return _password_hasher.hash(plain)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_context.verify(plain, hashed)
+    try:
+        return _password_hasher.verify(hashed, plain)
+    except VerifyMismatchError:
+        return False
 
 
 # ---------------------------------------------------------------------------

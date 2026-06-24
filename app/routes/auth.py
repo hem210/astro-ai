@@ -8,6 +8,7 @@ Refresh token lifecycle:
   - On logout: token is marked revoked, cookie is cleared
 """
 
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
@@ -31,13 +32,17 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _REFRESH_COOKIE = "refresh_token"
 _COOKIE_MAX_AGE = 7 * 24 * 60 * 60  # 7 days in seconds
 
+# Secure cookies are dropped by browsers over plain HTTP — only require it when
+# the frontend is actually served over HTTPS (e.g. in production).
+_COOKIE_SECURE = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").startswith("https://")
+
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=True,
+        secure=_COOKIE_SECURE,
         samesite="strict",
         max_age=_COOKIE_MAX_AGE,
         path="/auth/refresh",   # cookie is only sent to the refresh endpoint
