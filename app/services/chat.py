@@ -53,17 +53,25 @@ def stream_conversation(
     user_message: str,
     birth_context: str,
     history: list,
-    conv_id: uuid.UUID,
+    conv_id: Optional[uuid.UUID],
     needs_title: bool,
+    user_id: uuid.UUID,
 ) -> Generator[str, None, None]:
     """
     SSE generator for a single chat turn.
 
-    Yields SSE-formatted strings, persists messages to DB after the stream
-    completes, and generates a conversation title on the first turn.
+    For new conversations (conv_id=None), a UUID is generated immediately but
+    the DB row is only committed on success — no orphan rows on failure.
+
+    Final SSE event is always {"done": true, "conversation_id": "..."} so the
+    frontend can update the URL after confirming the turn was persisted.
     """
     agent = get_agent()
     collected: list[str] = []
+
+    is_new = conv_id is None
+    if is_new:
+        conv_id = uuid.uuid4()
 
     try:
         for token in agent.stream_tokens(user_message, history, birth_context):
@@ -77,6 +85,9 @@ def stream_conversation(
     full_response = "".join(collected)
 
     with SessionLocal() as db:
+        if is_new:
+            db.add(Conversation(id=conv_id, user_id=user_id))
+
         db.add(Message(conversation_id=conv_id, role="user", content=user_message))
         db.add(Message(conversation_id=conv_id, role="assistant", content=full_response))
 
@@ -91,4 +102,4 @@ def stream_conversation(
 
         db.commit()
 
-    yield "data: [DONE]\n\n"
+    yield f"data: {json.dumps({'done': True, 'conversation_id': str(conv_id)})}\n\n"

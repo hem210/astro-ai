@@ -1,9 +1,9 @@
 """
 Conversation and chat routes.
 
-/conversations               — list, create, delete conversations
+/conversations               — list, delete conversations
 /conversations/{id}/messages — fetch message history
-/conversations/{id}/chat     — SSE streaming chat
+/conversations/chat          — SSE streaming chat (creates or continues a conversation)
 """
 
 import uuid
@@ -42,18 +42,6 @@ def list_conversations(
     )
 
 
-@router.post("/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
-def create_conversation(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    conversation = Conversation(user_id=current_user.id)
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
-    return conversation
-
-
 @router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_conversation(
     conversation_id: uuid.UUID,
@@ -86,22 +74,29 @@ def get_messages(
 
 
 # ---------------------------------------------------------------------------
-# Chat (SSE)
+# Chat (SSE) — creates a new conversation or continues an existing one
 # ---------------------------------------------------------------------------
 
-@router.post("/conversations/{conversation_id}/chat")
+@router.post("/conversations/chat")
 def chat(
-    conversation_id: uuid.UUID,
     body: ChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    conversation = db.query(Conversation).filter(
-        Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id,
-    ).first()
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+    if body.conversation_id is not None:
+        conversation = db.query(Conversation).filter(
+            Conversation.id == body.conversation_id,
+            Conversation.user_id == current_user.id,
+        ).first()
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        conv_id = conversation.id
+        needs_title = conversation.title is None
+        history = db_messages_to_langchain(conversation.messages)
+    else:
+        conv_id = None
+        needs_title = True
+        history = []
 
     birth_profile = db.query(BirthProfile).filter(
         BirthProfile.user_id == current_user.id,
@@ -117,9 +112,10 @@ def chat(
         stream_conversation(
             user_message=body.message,
             birth_context=format_birth_context(birth_profile),
-            history=db_messages_to_langchain(conversation.messages),
-            conv_id=conversation.id,
-            needs_title=conversation.title is None,
+            history=history,
+            conv_id=conv_id,
+            needs_title=needs_title,
+            user_id=current_user.id,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
