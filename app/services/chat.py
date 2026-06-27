@@ -7,6 +7,8 @@ AstrologyAgent.stream_tokens().
 """
 
 import json
+import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Generator, Optional
@@ -19,6 +21,8 @@ from app.logger import get_logger
 from app.services.agent.astrology_agent import AstrologyAgent
 
 logger = get_logger("chat")
+
+DEV_MOCK = os.getenv("DEV_MOCK", "false").lower() == "true"
 
 _agent: Optional[AstrologyAgent] = None
 
@@ -49,6 +53,54 @@ def db_messages_to_langchain(messages: list[Message], window: int = 20) -> list:
     return result
 
 
+_MOCK_RESPONSE = (
+    "Based on your birth chart, Jupiter is currently transiting your 9th house, "
+    "bringing expansion and opportunity in areas of higher learning and long-distance travel. "
+    "Your Moon in Rohini nakshatra suggests a strong emotional connection to comfort and beauty. "
+    "The current Vimshottari dasha period indicates a time of **gradual growth** — "
+    "patience will be your greatest asset over the next 18 months.\n\n"
+    "Key transits to watch:\n"
+    "- **Saturn** aspects your natal Sun, calling for discipline in your career\n"
+    "- **Venus** in your 7th house favours relationships and partnerships\n"
+    "- The upcoming **Amavasya** on the 30th is an auspicious time for new beginnings"
+)
+
+
+def _mock_stream(
+    conv_id: uuid.UUID,
+    user_id: uuid.UUID,
+    user_message: str,
+    needs_title: bool,
+    is_new: bool,
+) -> Generator[str, None, None]:
+    """Streams a static response with realistic delays. No LLM call is made."""
+    logger.info(f"[CHAT] DEV_MOCK active — skipping LLM | conv={conv_id}")
+
+    # Simulate the thinking delay before first token
+    time.sleep(4)
+
+    words = _MOCK_RESPONSE.split(" ")
+    for i, word in enumerate(words):
+        token = word if i == len(words) - 1 else word + " "
+        yield f"data: {json.dumps({'token': token})}\n\n"
+        time.sleep(0.06)
+
+    with SessionLocal() as db:
+        if is_new:
+            conv = Conversation(id=conv_id, user_id=user_id)
+            db.add(conv)
+        else:
+            conv = db.get(Conversation, conv_id)
+        db.add(Message(conversation_id=conv_id, role="user", content=user_message))
+        db.add(Message(conversation_id=conv_id, role="assistant", content=_MOCK_RESPONSE))
+        conv.updated_at = datetime.now(timezone.utc)
+        if needs_title:
+            conv.title = "Mock conversation"
+        db.commit()
+
+    yield f"data: {json.dumps({'done': True, 'conversation_id': str(conv_id)})}\n\n"
+
+
 def stream_conversation(
     user_message: str,
     birth_context: str,
@@ -66,12 +118,16 @@ def stream_conversation(
     Final SSE event is always {"done": true, "conversation_id": "..."} so the
     frontend can update the URL after confirming the turn was persisted.
     """
-    agent = get_agent()
-    collected: list[str] = []
-
     is_new = conv_id is None
     if is_new:
         conv_id = uuid.uuid4()
+
+    if DEV_MOCK:
+        yield from _mock_stream(conv_id, user_id, user_message, needs_title, is_new)
+        return
+
+    agent = get_agent()
+    collected: list[str] = []
 
     try:
         for token in agent.stream_tokens(user_message, history, birth_context):
@@ -86,12 +142,14 @@ def stream_conversation(
 
     with SessionLocal() as db:
         if is_new:
-            db.add(Conversation(id=conv_id, user_id=user_id))
+            conv = Conversation(id=conv_id, user_id=user_id)
+            db.add(conv)
+        else:
+            conv = db.get(Conversation, conv_id)
 
         db.add(Message(conversation_id=conv_id, role="user", content=user_message))
         db.add(Message(conversation_id=conv_id, role="assistant", content=full_response))
 
-        conv = db.get(Conversation, conv_id)
         conv.updated_at = datetime.now(timezone.utc)
 
         if needs_title:
