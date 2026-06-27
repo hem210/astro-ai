@@ -34,10 +34,16 @@ def get_agent() -> AstrologyAgent:
     return _agent
 
 
+_MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+
 def format_birth_context(profile: BirthProfile) -> str:
+    month_name = _MONTH_NAMES[profile.month - 1]
     return (
         f"Name: {profile.name}\n"
-        f"Date of Birth: {profile.day}/{profile.month}/{profile.year}\n"
+        f"Date of Birth: {profile.day} {month_name} {profile.year}\n"
         f"Time of Birth: {profile.hour:02d}:{profile.minute:02d}\n"
         f"Place of Birth: {profile.birth_place}"
     )

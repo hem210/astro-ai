@@ -50,3 +50,14 @@ export function getAccessToken() {
 export function setAccessToken(token: string | null) {
   _accessToken = token
 }
+
+export async function refreshToken(): Promise<string | null> {
+  try {
+    const { data } = await api.post<{ access_token: string }>('/auth/refresh')
+    setAccessToken(data.access_token)
+    return data.access_token
+  } catch {
+    setAccessToken(null)
+    return null
+  }
+}

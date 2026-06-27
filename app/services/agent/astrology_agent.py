@@ -6,7 +6,7 @@ for astrological queries.
 """
 
 from typing import Optional, List
-from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_litellm import ChatLiteLLM
 from app.services.agent.config import (
     get_model_config,
@@ -74,13 +74,14 @@ class AstrologyAgent:
         messages.append(HumanMessage(content=query))
         return messages
 
-    def invoke(self, query: str, conversation_history: Optional[List] = None) -> str:
+    def invoke(self, query: str, conversation_history: Optional[List] = None, birth_context: Optional[str] = None) -> str:
         """
         Invoke the agent with a query.
 
         Args:
             query: User query string
             conversation_history: Optional list of previous messages
+            birth_context: Optional formatted birth profile string
 
         Returns:
             Agent response string
@@ -90,7 +91,7 @@ class AstrologyAgent:
         initial_state: AgentState = {
             "messages": messages,
             "kundali_data": None,
-            "birth_context": None,
+            "birth_context": birth_context,
         }
 
         # A fresh callback instance per invocation keeps the turn counter accurate
@@ -152,29 +153,14 @@ class AstrologyAgent:
         """
         Yield raw text tokens from the agent's final response, suitable for SSE.
 
-        Skips tool-call chunks and intermediate node outputs — only yields
-        content tokens from the agent node's AI response.
+        The graph nodes use .invoke() internally, so there are no mid-generation
+        chunks to intercept. Instead we get the full response via invoke() and
+        yield it word by word so the frontend receives a genuine character stream.
         """
-        messages = self._build_messages(query, conversation_history)
-
-        initial_state: AgentState = {
-            "messages": messages,
-            "kundali_data": None,
-            "birth_context": birth_context,
-        }
-
-        for chunk, metadata in self.graph.stream(
-            initial_state,
-            config={"callbacks": [AstroLoggerCallback()]},
-            stream_mode="messages",
-        ):
-            if (
-                isinstance(chunk, AIMessageChunk)
-                and chunk.content
-                and not getattr(chunk, "tool_call_chunks", None)
-                and metadata.get("langgraph_node") == "agent"
-            ):
-                yield chunk.content
+        full_response = self.invoke(query, conversation_history, birth_context)
+        words = full_response.split(" ")
+        for i, word in enumerate(words):
+            yield word if i == len(words) - 1 else word + " "
 
     def generate_title(self, first_message: str) -> str:
         """Generate a short conversation title from the first user message."""

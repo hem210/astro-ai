@@ -6,7 +6,7 @@ import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PlusIcon, TrashIcon, SendIcon, LogOut } from 'lucide-react'
-import { api, getAccessToken } from '@/api/client'
+import { api, getAccessToken, refreshToken } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 
@@ -58,7 +58,7 @@ function getApiError(err: unknown): string {
 export default function ChatPage() {
   const { conversationId } = useParams<{ conversationId?: string }>()
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
 
   const [conversations, setConversations] = useState<Conversation[]>([])
   // convTick increments to trigger sidebar refetch without needing a stable callback ref
@@ -126,22 +126,29 @@ export default function ChatPage() {
       { role: 'assistant', content: '', pending: true },
     ])
 
-    const token = getAccessToken()
     let firstToken = false
+    const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+    const reqBody = JSON.stringify({ message: text, conversation_id: conversationId ?? null })
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/conversations/chat`,
-        {
+      let token = getAccessToken()
+      let response = await fetch(`${BASE}/conversations/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+        body: reqBody,
+      })
+
+      if (response.status === 401) {
+        token = await refreshToken()
+        if (!token) { logout(); return }
+        response = await fetch(`${BASE}/conversations/chat`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           credentials: 'include',
-          body: JSON.stringify({ message: text, conversation_id: conversationId ?? null }),
-        }
-      )
+          body: reqBody,
+        })
+      }
 
       if (!response.ok || !response.body) {
         throw new Error(`HTTP ${response.status}`)
@@ -244,15 +251,8 @@ export default function ChatPage() {
 
       {/* ── Sidebar ── */}
       <aside className="flex w-60 shrink-0 flex-col border-r border-white/8" style={{ background: 'oklch(0.13 0 0)' }}>
-        <div className="flex items-center justify-between px-4 py-4 border-b border-white/8">
+        <div className="flex items-center px-4 py-4 border-b border-white/8">
           <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
-          <button
-            onClick={logout}
-            title="Sign out"
-            className="text-white/20 hover:text-white/50 transition-colors"
-          >
-            <LogOut className="size-3.5" />
-          </button>
         </div>
 
         <div className="px-3 py-3">
@@ -264,24 +264,24 @@ export default function ChatPage() {
 
         <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
           {conversations.map(conv => (
-            <button
+            <div
               key={conv.id}
               onClick={() => {
                 setMessages([])
                 navigate(`/chat/${conv.id}`)
               }}
               className={[
-                'group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors',
+                'group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors cursor-pointer',
                 conversationId === conv.id
                   ? 'bg-white/8 text-white'
                   : 'text-white/40 hover:bg-white/5 hover:text-white/70',
               ].join(' ')}
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium leading-snug">
+                <p className="truncate text-sm font-medium leading-snug">
                   {conv.title ?? 'New chat'}
                 </p>
-                <p className="text-[10px] text-white/25 mt-0.5">{relativeDate(conv.updated_at)}</p>
+                <p className="text-xs text-white/25 mt-0.5">{relativeDate(conv.updated_at)}</p>
               </div>
               <button
                 onClick={(e) => deleteConversation(conv.id, e)}
@@ -289,13 +289,29 @@ export default function ChatPage() {
               >
                 <TrashIcon className="size-3" />
               </button>
-            </button>
+            </div>
           ))}
 
           {conversations.length === 0 && (
-            <p className="px-3 py-6 text-center text-xs text-white/20">No conversations yet</p>
+            <p className="px-3 py-6 text-center text-sm text-white/20">No conversations yet</p>
           )}
         </nav>
+
+        <div className="flex items-center justify-between px-3 py-3 border-t border-white/8">
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex-1 min-w-0 text-left px-2 py-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-colors truncate text-sm font-medium"
+          >
+            {user?.name ?? ''}
+          </button>
+          <button
+            onClick={logout}
+            title="Sign out"
+            className="shrink-0 ml-1 p-1.5 text-white/20 hover:text-white/50 transition-colors rounded-lg hover:bg-white/5"
+          >
+            <LogOut className="size-3.5" />
+          </button>
+        </div>
       </aside>
 
       {/* ── Chat pane ── */}
@@ -316,13 +332,13 @@ export default function ChatPage() {
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'user' ? (
                   <div
-                    className="max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm text-white"
+                    className="max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-base text-white"
                     style={{ background: 'oklch(0.22 0 0)' }}
                   >
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="max-w-[85%] text-sm text-white/80 leading-relaxed">
+                  <div className="max-w-[85%] text-base text-white/80 leading-relaxed">
                     {msg.content && (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
@@ -358,7 +374,7 @@ export default function ChatPage() {
                 placeholder="Ask about your chart…"
                 rows={1}
                 disabled={streaming}
-                className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-white/25 outline-none disabled:opacity-50"
+                className="flex-1 resize-none bg-transparent text-base text-white placeholder:text-white/25 outline-none disabled:opacity-50"
                 style={{ maxHeight: '160px' }}
               />
               <Button
