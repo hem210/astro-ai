@@ -10,7 +10,7 @@ import json
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Generator, Optional
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -19,6 +19,7 @@ from app.db.base import SessionLocal
 from app.db.models import BirthProfile, Conversation, Message
 from app.logger import get_logger
 from app.services.agent.astrology_agent import AstrologyAgent
+from app.services.agent.config import SYSTEM_PROMPT
 
 logger = get_logger("chat")
 
@@ -46,6 +47,15 @@ def format_birth_context(profile: BirthProfile) -> str:
         f"Date of Birth: {profile.day} {month_name} {profile.year}\n"
         f"Time of Birth: {profile.hour:02d}:{profile.minute:02d}\n"
         f"Place of Birth: {profile.birth_place}"
+    )
+
+
+def build_chat_system_prompt(birth_context: str) -> str:
+    today = date.today().strftime("%B %d, %Y")
+    return (
+        SYSTEM_PROMPT
+        + f"\n\n### USER'S BIRTH PROFILE\n{birth_context}"
+        + f"\n\n### TODAY'S DATE\nToday is {today}."
     )
 
 
@@ -109,7 +119,7 @@ def _mock_stream(
 
 def stream_conversation(
     user_message: str,
-    birth_context: str,
+    system_prompt: str,
     history: list,
     conv_id: Optional[uuid.UUID],
     needs_title: bool,
@@ -136,7 +146,7 @@ def stream_conversation(
     collected: list[str] = []
 
     try:
-        for token in agent.stream_tokens(user_message, history, birth_context):
+        for token in agent.stream_tokens(user_message, history, system_prompt):
             collected.append(token)
             yield f"data: {json.dumps({'token': token})}\n\n"
     except Exception as exc:

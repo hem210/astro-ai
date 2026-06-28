@@ -17,6 +17,7 @@ from app.db.base import get_db
 from app.db.models import BirthProfile, Conversation, User
 from app.schemas.conversation import ChatRequest, ConversationResponse, MessageResponse
 from app.services.chat import (
+    build_chat_system_prompt,
     db_messages_to_langchain,
     format_birth_context,
     stream_conversation,
@@ -108,10 +109,12 @@ def chat(
             detail="No primary birth profile found. Please complete onboarding.",
         )
 
+    system_prompt = build_chat_system_prompt(format_birth_context(birth_profile))
+
     return StreamingResponse(
         stream_conversation(
             user_message=body.message,
-            birth_context=format_birth_context(birth_profile),
+            system_prompt=system_prompt,
             history=history,
             conv_id=conv_id,
             needs_title=needs_title,

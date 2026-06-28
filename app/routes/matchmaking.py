@@ -1,132 +1,56 @@
-from fastapi import Body, HTTPException
+from fastapi import Body
 from fastapi.routing import APIRouter
+from app.services.ashtakoota_services.generate_profile import generate_ashtakoota_profile
+from app.services.compatibility import compute_score_from_birth_details
 from app.services.coord_utils import get_coordinates
 from app.services.kundali_chart import planets_calculation
-from app.services.ashtakoota_services.generate_profile import generate_ashtakoota_profile
-from app.services.ashtakoota_services.calculate_score import calculate_ashtakoota
 from app.services.explanation_pipeline import ashtakoota_explanation_pipeline
-from app.models import APIBirthDetails, BirthChart, AshtakootaMatchScore
-import json
+from app.models import APIBirthDetails, AshtakootaMatchScore, BirthChart
+
 router = APIRouter()
+
 
 @router.post("/ashtakoota-score")
 async def ashtakoota_score(
     groom_birth_details: APIBirthDetails = Body(...),
     bride_birth_details: APIBirthDetails = Body(...)
 ) -> AshtakootaMatchScore:
-    groom_coords = get_coordinates(groom_birth_details.birth_place)
-    if not groom_coords:
-        print("Invalid groom birth place name, using default coordinates")
-    
-    groom_birth_chart = BirthChart(
-        day=groom_birth_details.day,
-        month=groom_birth_details.month,
-        year=groom_birth_details.year,
-        hour=groom_birth_details.hour,
-        minute=groom_birth_details.minute,
-        second=groom_birth_details.second,
-        latitude=groom_coords.get("latitude", 23.03),
-        longitude=groom_coords.get("longitude", 72.62),
+    return compute_score_from_birth_details(
+        groom_birth_details.day, groom_birth_details.month, groom_birth_details.year,
+        groom_birth_details.hour, groom_birth_details.minute, groom_birth_details.birth_place,
+        bride_birth_details.day, bride_birth_details.month, bride_birth_details.year,
+        bride_birth_details.hour, bride_birth_details.minute, bride_birth_details.birth_place,
     )
 
-    groom_kundali_chart = planets_calculation(groom_birth_chart)
-
-    bride_coords = get_coordinates(bride_birth_details.birth_place)
-    if not bride_coords:
-        print("Invalid bride birth place name, using default coordinates")
-    
-    bride_birth_chart = BirthChart(
-        day=bride_birth_details.day,
-        month=bride_birth_details.month,
-        year=bride_birth_details.year,
-        hour=bride_birth_details.hour,
-        minute=bride_birth_details.minute,
-        second=bride_birth_details.second,
-        latitude=bride_coords.get("latitude", 23.03),
-        longitude=bride_coords.get("longitude", 72.62),
-    )
-
-    bride_kundali_chart = planets_calculation(bride_birth_chart)
-
-    groom_ashtakoota_profile = generate_ashtakoota_profile(
-        groom_kundali_chart.planets["moon"].zodiac, 
-        groom_kundali_chart.planets["moon"].deviation,
-        groom_kundali_chart.nakshatra
-    )
-    
-    bride_ashtakoota_profile = generate_ashtakoota_profile(
-        bride_kundali_chart.planets["moon"].zodiac, 
-        bride_kundali_chart.planets["moon"].deviation,
-        bride_kundali_chart.nakshatra
-    )
-
-    with open("groom_profile.json", "w") as f:
-        f.write(groom_ashtakoota_profile.model_dump_json(indent=4))
-    
-    with open("bride_profile.json", "w") as f:
-        f.write(bride_ashtakoota_profile.model_dump_json(indent=4))
-
-    score = calculate_ashtakoota(groom_profile=groom_ashtakoota_profile,
-                                bride_profile=bride_ashtakoota_profile)
-    return score
 
 @router.post("/ashtakoota-score-explain")
-async def ashtakoota_score(
+async def ashtakoota_score_explain(
     groom_birth_details: APIBirthDetails = Body(...),
     bride_birth_details: APIBirthDetails = Body(...)
 ):
-    groom_coords = get_coordinates(groom_birth_details.birth_place)
-    if not groom_coords:
-        print("Invalid birth place name, using default coordinates")
-    
-    groom_birth_chart = BirthChart(
-        day=groom_birth_details.day,
-        month=groom_birth_details.month,
-        year=groom_birth_details.year,
-        hour=groom_birth_details.hour,
-        minute=groom_birth_details.minute,
-        second=groom_birth_details.second,
-        latitude=groom_coords.get("latitude", 23.03),
-        longitude=groom_coords.get("longitude", 72.62),
+    score = compute_score_from_birth_details(
+        groom_birth_details.day, groom_birth_details.month, groom_birth_details.year,
+        groom_birth_details.hour, groom_birth_details.minute, groom_birth_details.birth_place,
+        bride_birth_details.day, bride_birth_details.month, bride_birth_details.year,
+        bride_birth_details.hour, bride_birth_details.minute, bride_birth_details.birth_place,
     )
 
-    groom_kundali_chart = planets_calculation(groom_birth_chart)
+    def _chart(d: APIBirthDetails):
+        coords = get_coordinates(d.birth_place) or {"latitude": 23.03, "longitude": 72.62}
+        return planets_calculation(BirthChart(
+            day=d.day, month=d.month, year=d.year,
+            hour=d.hour, minute=d.minute, second=d.second,
+            latitude=coords["latitude"], longitude=coords["longitude"],
+        ))
 
-    bride_coords = get_coordinates(bride_birth_details.birth_place)
-    if not bride_coords:
-        print("Invalid bride birth place name, using default coordinates")
-    
-    bride_birth_chart = BirthChart(
-        day=bride_birth_details.day,
-        month=bride_birth_details.month,
-        year=bride_birth_details.year,
-        hour=bride_birth_details.hour,
-        minute=bride_birth_details.minute,
-        second=bride_birth_details.second,
-        latitude=bride_coords.get("latitude", 23.03),
-        longitude=bride_coords.get("longitude", 72.62),
+    groom_chart = _chart(groom_birth_details)
+    bride_chart = _chart(bride_birth_details)
+    groom_profile = generate_ashtakoota_profile(
+        groom_chart.planets["moon"].zodiac, groom_chart.planets["moon"].deviation, groom_chart.nakshatra
+    )
+    bride_profile = generate_ashtakoota_profile(
+        bride_chart.planets["moon"].zodiac, bride_chart.planets["moon"].deviation, bride_chart.nakshatra
     )
 
-    bride_kundali_chart = planets_calculation(bride_birth_chart)
-
-    groom_ashtakoota_profile = generate_ashtakoota_profile(
-        groom_kundali_chart.planets["moon"].zodiac, 
-        groom_kundali_chart.planets["moon"].deviation,
-        groom_kundali_chart.nakshatra
-    )
-    
-    bride_ashtakoota_profile = generate_ashtakoota_profile(
-        bride_kundali_chart.planets["moon"].zodiac, 
-        bride_kundali_chart.planets["moon"].deviation,
-        bride_kundali_chart.nakshatra
-    )
-
-    score = calculate_ashtakoota(groom_profile=groom_ashtakoota_profile,
-                                bride_profile=bride_ashtakoota_profile)
-    
-    response = await ashtakoota_explanation_pipeline(score, groom_ashtakoota_profile, bride_ashtakoota_profile)
-
-    with open("explanation.md", "w") as f:
-        f.write(response)
-    ashtakoota_score_explain = {"ashtakoota_score_explain": response}
-    return ashtakoota_score_explain
+    response = await ashtakoota_explanation_pipeline(score, groom_profile, bride_profile)
+    return {"ashtakoota_score_explain": response}

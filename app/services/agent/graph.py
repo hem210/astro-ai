@@ -4,13 +4,12 @@ LangGraph Agent Graph Definition
 Defines the state schema and agent graph for the astrology agent.
 """
 
-from datetime import date
 from typing import TypedDict, List, Optional, Dict, Any, Annotated
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.language_models import BaseChatModel
-from app.services.agent.config import SYSTEM_PROMPT
 
 # Import add_messages reducer (LangGraph best practice for message lists)
 try:
@@ -23,10 +22,8 @@ except ImportError:
 
 
 class AgentState(TypedDict):
-    """State schema for the astrology agent."""
     messages: Annotated[List[BaseMessage], add_messages]
     kundali_data: Optional[Dict[str, Any]]
-    birth_context: Optional[str]
 
 
 def create_agent_graph(
@@ -50,27 +47,10 @@ def create_agent_graph(
     tool_node = ToolNode(tools)
 
     # Define agent node
-    def agent_node(state: AgentState) -> AgentState:
-        """Agent node that processes messages and decides on tool calls."""
-        messages = state["messages"]
-
-        has_system_message = messages and isinstance(messages[0], SystemMessage)
-
-        if not has_system_message:
-            today_str = date.today().strftime("%B %d, %Y")
-            system_content = SYSTEM_PROMPT
-            birth_context = state.get("birth_context")
-            if birth_context:
-                system_content += f"\n\n### USER'S BIRTH PROFILE\n{birth_context}"
-            system_content += f"\n\n### TODAY'S DATE\nToday is {today_str}."
-            messages_with_system = [SystemMessage(content=system_content)] + messages
-        else:
-            messages_with_system = messages
-
-        # Invoke LLM with tools
+    def agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
+        system_prompt = config["configurable"]["system_prompt"]
+        messages_with_system = [SystemMessage(content=system_prompt)] + state["messages"]
         response = llm_with_tools.invoke(messages_with_system)
-
-        # Return new message to be added to state (reducer will handle merging)
         return {"messages": [response]}
 
     # Define conditional edge function

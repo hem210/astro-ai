@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -61,11 +61,16 @@ class BirthProfile(Base):
     hour: Mapped[int] = mapped_column(Integer, nullable=False)
     minute: Mapped[int] = mapped_column(Integer, nullable=False)
     birth_place: Mapped[str] = mapped_column(String, nullable=False)
+    compatibility_score: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
 
     user: Mapped["User"] = relationship(back_populates="birth_profiles")
+    partner_conversations: Mapped[list["Conversation"]] = relationship(
+        foreign_keys="[Conversation.partner_profile_id]",
+        cascade="all, delete-orphan",
+    )
 
 
 class Conversation(Base):
@@ -77,6 +82,9 @@ class Conversation(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    partner_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("birth_profiles.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     title: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
@@ -86,6 +94,9 @@ class Conversation(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="conversations")
+    partner_profile: Mapped["BirthProfile | None"] = relationship(
+        foreign_keys=[partner_profile_id], back_populates="partner_conversations"
+    )
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation",
         cascade="all, delete-orphan",

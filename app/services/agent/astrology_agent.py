@@ -74,14 +74,14 @@ class AstrologyAgent:
         messages.append(HumanMessage(content=query))
         return messages
 
-    def invoke(self, query: str, conversation_history: Optional[List] = None, birth_context: Optional[str] = None) -> str:
+    def invoke(self, query: str, conversation_history: Optional[List] = None, system_prompt: str = "") -> str:
         """
         Invoke the agent with a query.
 
         Args:
             query: User query string
             conversation_history: Optional list of previous messages
-            birth_context: Optional formatted birth profile string
+            system_prompt: Full system prompt including role, context, and today's date
 
         Returns:
             Agent response string
@@ -91,13 +91,11 @@ class AstrologyAgent:
         initial_state: AgentState = {
             "messages": messages,
             "kundali_data": None,
-            "birth_context": birth_context,
         }
 
-        # A fresh callback instance per invocation keeps the turn counter accurate
         result = self.graph.invoke(
             initial_state,
-            config={"callbacks": [AstroLoggerCallback()]},
+            config={"callbacks": [AstroLoggerCallback()], "configurable": {"system_prompt": system_prompt}},
         )
 
         # Extract final response
@@ -144,20 +142,12 @@ class AstrologyAgent:
         ):
             yield chunk
 
-    def stream_tokens(
-        self,
-        query: str,
-        conversation_history: Optional[List] = None,
-        birth_context: Optional[str] = None,
-    ):
+    def stream_tokens(self, query: str, conversation_history: Optional[List] = None, system_prompt: str = ""):
         """
-        Yield raw text tokens from the agent's final response, suitable for SSE.
-
-        The graph nodes use .invoke() internally, so there are no mid-generation
-        chunks to intercept. Instead we get the full response via invoke() and
-        yield it word by word so the frontend receives a genuine character stream.
+        Yield the agent's response word by word, suitable for SSE.
+        Calls invoke() internally since the graph nodes use .invoke() on the LLM.
         """
-        full_response = self.invoke(query, conversation_history, birth_context)
+        full_response = self.invoke(query, conversation_history, system_prompt)
         words = full_response.split(" ")
         for i, word in enumerate(words):
             yield word if i == len(words) - 1 else word + " "
