@@ -61,6 +61,7 @@ class BirthProfile(Base):
     hour: Mapped[int] = mapped_column(Integer, nullable=False)
     minute: Mapped[int] = mapped_column(Integer, nullable=False)
     birth_place: Mapped[str] = mapped_column(String, nullable=False)
+    gender: Mapped[str] = mapped_column(String, nullable=False)
     compatibility_score: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False

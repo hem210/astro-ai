@@ -37,7 +37,7 @@ def list_conversations(
 ):
     return (
         db.query(Conversation)
-        .filter(Conversation.user_id == current_user.id)
+        .filter(Conversation.user_id == current_user.id, Conversation.partner_profile_id.is_(None))
         .order_by(Conversation.updated_at.desc())
         .all()
     )

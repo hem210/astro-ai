@@ -6,7 +6,7 @@ import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PlusIcon, TrashIcon, SendIcon, LogOut } from 'lucide-react'
-import { api, getAccessToken, refreshToken } from '@/api/client'
+import { api, fetchSSE } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 
@@ -127,34 +127,13 @@ export default function ChatPage() {
     ])
 
     let firstToken = false
-    const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
     const reqBody = JSON.stringify({ message: text, conversation_id: conversationId ?? null })
 
     try {
-      let token = getAccessToken()
-      let response = await fetch(`${BASE}/conversations/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        credentials: 'include',
-        body: reqBody,
-      })
+      const response = await fetchSSE('/conversations/chat', reqBody)
+      if (!response) return
 
-      if (response.status === 401) {
-        token = await refreshToken()
-        if (!token) { logout(); return }
-        response = await fetch(`${BASE}/conversations/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          credentials: 'include',
-          body: reqBody,
-        })
-      }
-
-      if (!response.ok || !response.body) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      const reader = response.body.getReader()
+      const reader = response.body!.getReader()
       const decoder = new TextDecoder()
 
       const parser = createParser({
@@ -255,6 +234,18 @@ export default function ChatPage() {
           <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
         </div>
 
+        <div className="flex border-b border-white/8">
+          <button className="flex-1 py-2.5 text-xs font-medium text-white border-b-2 border-amber-400 transition-colors">
+            My Chat
+          </button>
+          <button
+            onClick={() => navigate('/partners')}
+            className="flex-1 py-2.5 text-xs font-medium text-white/30 hover:text-white/60 border-b-2 border-transparent transition-colors"
+          >
+            Partners
+          </button>
+        </div>
+
         <div className="px-3 py-3">
           <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-white/60 hover:text-white border-white/10" onClick={newChat}>
             <PlusIcon className="size-3.5" />
@@ -338,7 +329,7 @@ export default function ChatPage() {
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="max-w-[85%] text-base text-white/80 leading-relaxed">
+                  <div className="prose prose-invert max-w-[85%] text-base text-white/80 leading-relaxed">
                     {msg.content && (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}

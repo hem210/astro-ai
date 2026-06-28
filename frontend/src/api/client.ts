@@ -61,3 +61,30 @@ export async function refreshToken(): Promise<string | null> {
     return null
   }
 }
+
+// ---------------------------------------------------------------------------
+// SSE fetch with auth + 401 retry
+// ---------------------------------------------------------------------------
+
+export async function fetchSSE(url: string, body: string): Promise<Response | null> {
+  const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+  let token = getAccessToken()
+  let response = await fetch(`${BASE}${url}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
+    body,
+  })
+  if (response.status === 401) {
+    token = await refreshToken()
+    if (!token) return null
+    response = await fetch(`${BASE}${url}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      credentials: 'include',
+      body,
+    })
+  }
+  if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+  return response
+}

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class BirthProfileCreate(BaseModel):
     type: Literal["primary", "partner"]
     name: str
+    gender: Literal["male", "female"]
     day: int = Field(ge=1, le=31)
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=1800, le=2399)
@@ -20,6 +21,7 @@ class BirthProfileCreate(BaseModel):
 
 class BirthProfileUpdate(BaseModel):
     name: str | None = None
+    gender: Literal["male", "female"] | None = None
     day: int | None = Field(default=None, ge=1, le=31)
     month: int | None = Field(default=None, ge=1, le=12)
     year: int | None = Field(default=None, ge=1800, le=2399)
@@ -34,6 +36,7 @@ class BirthProfileResponse(BaseModel):
     id: uuid.UUID
     type: str
     name: str
+    gender: str
     day: int
     month: int
     year: int

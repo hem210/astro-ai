@@ -62,11 +62,10 @@ def compute_score_from_birth_details(
 
 
 def compute_score(user_profile: BirthProfile, partner_profile: BirthProfile) -> AshtakootaMatchScore:
+    groom, bride = (user_profile, partner_profile) if user_profile.gender == "male" else (partner_profile, user_profile)
     return compute_score_from_birth_details(
-        user_profile.day, user_profile.month, user_profile.year,
-        user_profile.hour, user_profile.minute, user_profile.birth_place,
-        partner_profile.day, partner_profile.month, partner_profile.year,
-        partner_profile.hour, partner_profile.minute, partner_profile.birth_place,
+        groom.day, groom.month, groom.year, groom.hour, groom.minute, groom.birth_place,
+        bride.day, bride.month, bride.year, bride.hour, bride.minute, bride.birth_place,
     )
 
 
@@ -74,13 +73,38 @@ def compute_score(user_profile: BirthProfile, partner_profile: BirthProfile) -> 
 # System prompt builder
 # ---------------------------------------------------------------------------
 
-def _format_profile(profile: BirthProfile) -> str:
+def _get_ashtakoota_profile(profile: BirthProfile):
+    coords = get_coordinates(profile.birth_place) or {"latitude": 23.03, "longitude": 72.62}
+    chart = planets_calculation(BirthChart(
+        day=profile.day, month=profile.month, year=profile.year,
+        hour=profile.hour, minute=profile.minute, second=0,
+        latitude=coords["latitude"], longitude=coords["longitude"],
+    ))
+    return generate_ashtakoota_profile(
+        chart.planets["moon"].zodiac, chart.planets["moon"].deviation, chart.nakshatra
+    )
+
+
+def _format_birth_profile(profile: BirthProfile) -> str:
     month_name = _MONTH_NAMES[profile.month - 1]
     return (
         f"Name: {profile.name}\n"
         f"Date of Birth: {profile.day} {month_name} {profile.year}\n"
         f"Time of Birth: {profile.hour:02d}:{profile.minute:02d}\n"
         f"Place of Birth: {profile.birth_place}"
+    )
+
+
+def _format_ashtakoota_profile(ap) -> str:
+    return (
+        f"Moon Sign: {ap.moon_zodiac}\n"
+        f"Nakshatra: {ap.nakshatra}\n"
+        f"Nadi: {ap.nadi}\n"
+        f"Gana: {ap.gana}\n"
+        f"Yoni: {ap.yoni}\n"
+        f"Graha Maitri: {ap.graha_maitri}\n"
+        f"Vashya: {ap.vashya}\n"
+        f"Varna: {ap.varna}"
     )
 
 
@@ -99,10 +123,14 @@ def build_compatibility_system_prompt(
     score: AshtakootaMatchScore,
 ) -> str:
     today = date.today().strftime("%B %d, %Y")
+    user_ap = _get_ashtakoota_profile(user_profile)
+    partner_ap = _get_ashtakoota_profile(partner_profile)
+    user_label = "GROOM" if user_profile.gender == "male" else "BRIDE"
+    partner_label = "GROOM" if partner_profile.gender == "male" else "BRIDE"
     return (
         COMPATIBILITY_SYSTEM_PROMPT
-        + f"\n\n### USER'S BIRTH PROFILE\n{_format_profile(user_profile)}"
-        + f"\n\n### PARTNER'S BIRTH PROFILE\n{_format_profile(partner_profile)}"
+        + f"\n\n### {user_label}'S BIRTH PROFILE\n{_format_birth_profile(user_profile)}\n{_format_ashtakoota_profile(user_ap)}"
+        + f"\n\n### {partner_label}'S BIRTH PROFILE\n{_format_birth_profile(partner_profile)}\n{_format_ashtakoota_profile(partner_ap)}"
         + f"\n\n### ASHTAKOOTA COMPATIBILITY SCORE\n{_format_score(score)}"
         + f"\n\n### TODAY'S DATE\nToday is {today}."
     )
@@ -121,6 +149,7 @@ def stream_compatibility_conversation(
     user_id: uuid.UUID,
     user_message: str,
     title: Optional[str] = None,
+    save_user_message: bool = True,
 ) -> Generator[str, None, None]:
     agent = _get_agent()
     collected: list[str] = []
@@ -148,7 +177,8 @@ def stream_compatibility_conversation(
         else:
             conv = db.get(Conversation, conv_id)
 
-        db.add(Message(conversation_id=conv_id, role="user", content=user_message))
+        if save_user_message:
+            db.add(Message(conversation_id=conv_id, role="user", content=user_message))
         db.add(Message(conversation_id=conv_id, role="assistant", content=full_response))
         conv.updated_at = datetime.now(timezone.utc)
         db.commit()

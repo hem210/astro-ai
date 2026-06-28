@@ -111,6 +111,7 @@ def analyze(
             user_id=current_user.id,
             user_message=_INITIAL_ANALYSIS_PROMPT,
             title=title,
+            save_user_message=False,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},

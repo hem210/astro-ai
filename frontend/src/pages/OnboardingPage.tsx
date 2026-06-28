@@ -31,14 +31,17 @@ function getApiError(err: unknown): string {
   return 'Something went wrong'
 }
 
-const selectClass = [
-  'w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground',
+const selectClass = (value: string) => [
+  'w-full h-9 rounded-md border border-input bg-transparent dark:bg-input/30 px-3 text-sm',
+  value ? 'text-foreground' : 'text-muted-foreground',
+  '[&>option]:bg-[#1e1e1e] [&>option]:text-white',
   'focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer',
 ].join(' ')
 
 export default function OnboardingPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [gender, setGender] = useState('')
   const [day, setDay] = useState('')
   const [month, setMonth] = useState('')
   const [year, setYear] = useState('')
@@ -49,7 +52,7 @@ export default function OnboardingPage() {
 
   async function handleSubmit(ev: FormEvent) {
     ev.preventDefault()
-    if (!day || !month || !year || !hour || !minute || !birthPlace.trim()) {
+    if (!gender || !day || !month || !year || !hour || !minute || !birthPlace.trim()) {
       toast.error('Please fill in all fields')
       return
     }
@@ -58,6 +61,7 @@ export default function OnboardingPage() {
       await api.post('/birth-profiles', {
         name: user!.name,
         type: 'primary',
+        gender,
         day: parseInt(day),
         month: parseInt(month),
         year: parseInt(year),
@@ -130,25 +134,35 @@ export default function OnboardingPage() {
           className="rounded-2xl border border-white/8 p-7 space-y-6"
           style={{ background: 'oklch(0.16 0 0 / 0.85)', backdropFilter: 'blur(20px)' }}
         >
+          {/* Gender */}
+          <div className="space-y-2">
+            <Label className="text-white/50 text-xs tracking-wide">Gender</Label>
+            <select value={gender} onChange={e => setGender(e.target.value)} className={selectClass(gender)}>
+              <option value="" disabled>Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+
           {/* Birth date */}
           <div className="space-y-2">
             <Label className="text-white/50 text-xs tracking-wide">Birth Date</Label>
             <div className="grid grid-cols-3 gap-2">
-              <select value={day} onChange={e => setDay(e.target.value)} className={selectClass}>
+              <select value={day} onChange={e => setDay(e.target.value)} className={selectClass(day)}>
                 <option value="" disabled>Day</option>
                 {Array.from({ length: 31 }, (_, i) => (
                   <option key={i + 1} value={String(i + 1)}>{i + 1}</option>
                 ))}
               </select>
 
-              <select value={month} onChange={e => setMonth(e.target.value)} className={selectClass}>
+              <select value={month} onChange={e => setMonth(e.target.value)} className={selectClass(month)}>
                 <option value="" disabled>Month</option>
                 {MONTHS.map((m, i) => (
                   <option key={i} value={String(i + 1)}>{m}</option>
                 ))}
               </select>
 
-              <select value={year} onChange={e => setYear(e.target.value)} className={selectClass}>
+              <select value={year} onChange={e => setYear(e.target.value)} className={selectClass(year)}>
                 <option value="" disabled>Year</option>
                 {YEARS.map(y => (
                   <option key={y} value={String(y)}>{y}</option>
@@ -161,14 +175,14 @@ export default function OnboardingPage() {
           <div className="space-y-2">
             <Label className="text-white/50 text-xs tracking-wide">Birth Time</Label>
             <div className="grid grid-cols-2 gap-2">
-              <select value={hour} onChange={e => setHour(e.target.value)} className={selectClass}>
+              <select value={hour} onChange={e => setHour(e.target.value)} className={selectClass(hour)}>
                 <option value="" disabled>Hour</option>
                 {Array.from({ length: 24 }, (_, i) => (
                   <option key={i} value={String(i)}>{String(i).padStart(2, '0')}:00</option>
                 ))}
               </select>
 
-              <select value={minute} onChange={e => setMinute(e.target.value)} className={selectClass}>
+              <select value={minute} onChange={e => setMinute(e.target.value)} className={selectClass(minute)}>
                 <option value="" disabled>Minute</option>
                 {Array.from({ length: 60 }, (_, i) => (
                   <option key={i} value={String(i)}>{String(i).padStart(2, '0')}</option>

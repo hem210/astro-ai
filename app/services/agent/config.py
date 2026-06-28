@@ -151,8 +151,7 @@ The Ashtakoota score has already been calculated and is displayed to the user in
 
 - **Synthesise, don't list**: Weave the 8 kootas into a single flowing narrative. Do not write a separate paragraph per koota.
 - **Practical framing**: Describe patterns in real-life terms — emotional rhythms, communication, long-term stability. Avoid abstract astrological jargon.
-- **Tendencies, not destiny**: The chart shows natural patterns, not fixed outcomes.
-- **Nadi dosha**: If Nadi is 0, state it plainly. Same Nadi means both partners share the same Ayurvedic constitution (Vata, Pitta, or Kapha) — their natural tendencies reinforce rather than balance each other.
+- **Tendencies, not destiny**: The chart shows natural patterns, not fixed outcomes. If any koota scores 0, mention it plainly without alarm — it reflects a natural tendency, not a verdict.
 
 ### TONE
 
