@@ -40,11 +40,10 @@ class AstrologyAgent:
         # Get model configuration (reads from env - fast)
         self.model_name = model_name or AGENT_MODEL
         model_config = get_model_config(self.model_name)
+        self.litellm_model = model_config["litellm_model"]
 
-        # Create ChatLiteLLM instance (lightweight - no need to cache)
-        # This handles all message conversion and tool calling automatically
         self.llm = ChatLiteLLM(
-            model=model_config["litellm_model"],
+            model=self.litellm_model,
             api_key=model_config["api_key"]
         )
 
@@ -74,7 +73,7 @@ class AstrologyAgent:
         messages.append(HumanMessage(content=query))
         return messages
 
-    def invoke(self, query: str, conversation_history: Optional[List] = None, system_prompt: str = "") -> str:
+    def invoke(self, query: str, conversation_history: Optional[List] = None, system_prompt: str = "", _callback=None) -> str:
         """
         Invoke the agent with a query.
 
@@ -93,9 +92,10 @@ class AstrologyAgent:
             "kundali_data": None,
         }
 
+        callback = _callback or AstroLoggerCallback()
         result = self.graph.invoke(
             initial_state,
-            config={"callbacks": [AstroLoggerCallback()], "configurable": {"system_prompt": system_prompt}},
+            config={"callbacks": [callback], "configurable": {"system_prompt": system_prompt}},
         )
 
         # Extract final response
@@ -142,17 +142,26 @@ class AstrologyAgent:
         ):
             yield chunk
 
-    def stream_tokens(self, query: str, conversation_history: Optional[List] = None, system_prompt: str = ""):
-        """
-        Yield the agent's response word by word, suitable for SSE.
-        Calls invoke() internally since the graph nodes use .invoke() on the LLM.
-        """
-        full_response = self.invoke(query, conversation_history, system_prompt)
+    def stream_tokens(
+        self,
+        query: str,
+        usage: dict,
+        conversation_history: Optional[List] = None,
+        system_prompt: str = "",
+    ):
+        """Yield the agent's response word by word, suitable for SSE."""
+        callback = AstroLoggerCallback()
+        full_response = self.invoke(query, conversation_history, system_prompt, _callback=callback)
+
+        usage["input_tokens"] = callback.total_input_tokens
+        usage["output_tokens"] = callback.total_output_tokens
+        usage["model"] = self.litellm_model
+
         words = full_response.split(" ")
         for i, word in enumerate(words):
             yield word if i == len(words) - 1 else word + " "
 
-    def generate_title(self, first_message: str) -> str:
+    def generate_title(self, usage: dict, first_message: str) -> str:
         """Generate a short conversation title from the first user message."""
         response = self.llm.invoke([
             HumanMessage(
@@ -162,4 +171,8 @@ class AstrologyAgent:
                 )
             )
         ])
+        if response.usage_metadata:
+            usage["input_tokens"] = response.usage_metadata.get("input_tokens", 0)
+            usage["output_tokens"] = response.usage_metadata.get("output_tokens", 0)
+            usage["model"] = self.litellm_model
         return str(response.content).strip()[:100]

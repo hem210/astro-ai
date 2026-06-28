@@ -20,6 +20,7 @@ from app.db.models import BirthProfile, Conversation, Message
 from app.logger import get_logger
 from app.services.agent.astrology_agent import AstrologyAgent
 from app.services.agent.config import SYSTEM_PROMPT
+from app.services.usage import write_llm_usage
 
 logger = get_logger("chat")
 
@@ -144,9 +145,11 @@ def stream_conversation(
 
     agent = get_agent()
     collected: list[str] = []
+    usage: dict = {}
+    title_usage: dict = {}
 
     try:
-        for token in agent.stream_tokens(user_message, history, system_prompt):
+        for token in agent.stream_tokens(user_message, usage, history, system_prompt):
             collected.append(token)
             yield f"data: {json.dumps({'token': token})}\n\n"
     except Exception as exc:
@@ -170,10 +173,15 @@ def stream_conversation(
 
         if needs_title:
             try:
-                conv.title = agent.generate_title(user_message)
+                conv.title = agent.generate_title(title_usage, user_message)
             except Exception as exc:
                 logger.warning(f"[CHAT] title generation failed | {exc}")
 
         db.commit()
+
+    if usage:
+        write_llm_usage(user_id, conv_id, usage["model"], usage["input_tokens"], usage["output_tokens"])
+    if title_usage:
+        write_llm_usage(user_id, conv_id, title_usage["model"], title_usage["input_tokens"], title_usage["output_tokens"])
 
     yield f"data: {json.dumps({'done': True, 'conversation_id': str(conv_id)})}\n\n"

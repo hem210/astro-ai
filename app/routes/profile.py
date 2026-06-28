@@ -91,6 +91,7 @@ def create_birth_profile(
         user_id=current_user.id,
         type=body.type,
         name=body.name,
+        gender=body.gender,
         day=body.day,
         month=body.month,
         year=body.year,

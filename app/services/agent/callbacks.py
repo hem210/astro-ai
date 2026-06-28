@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.outputs import LLMResult
 
 from app.logger import get_logger
 
@@ -100,8 +101,9 @@ class AstroLoggerCallback(BaseCallbackHandler):
     def __init__(self) -> None:
         super().__init__()
         self._turn: int = 0
-        # Maps str(run_id) → {"name": str, "time": float}
         self._active_tools: Dict[str, Dict[str, Any]] = {}
+        self.total_input_tokens: int = 0
+        self.total_output_tokens: int = 0
 
     # ------------------------------------------------------------------
     # LLM events  (fires each time the LLM is called inside the graph)
@@ -117,6 +119,15 @@ class AstroLoggerCallback(BaseCallbackHandler):
     ) -> None:
         self._turn += 1
         logger.info(f"[AGENT] turn {self._turn}")
+
+    def on_llm_end(self, response: LLMResult, *, run_id: UUID, **kwargs: Any) -> None:
+        usage = (response.llm_output or {}).get("token_usage", {})
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
+        if input_tokens or output_tokens:
+            logger.info(f"[AGENT] usage | turn={self._turn} in={input_tokens} out={output_tokens}")
 
     # ------------------------------------------------------------------
     # Tool events
