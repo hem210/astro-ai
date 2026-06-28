@@ -9,6 +9,7 @@ import { PlusIcon, TrashIcon, SendIcon, LogOut } from 'lucide-react'
 import { api, fetchSSE } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -253,7 +254,8 @@ export default function ChatPage() {
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+        <ScrollArea className="flex-1">
+        <nav className="px-2 pb-4 space-y-0.5">
           {conversations.map(conv => (
             <div
               key={conv.id}
@@ -287,6 +289,7 @@ export default function ChatPage() {
             <p className="px-3 py-6 text-center text-sm text-white/20">No conversations yet</p>
           )}
         </nav>
+        </ScrollArea>
 
         <div className="flex items-center justify-between px-3 py-3 border-t border-white/8">
           <button
@@ -308,8 +311,19 @@ export default function ChatPage() {
       {/* ── Chat pane ── */}
       <main className="flex flex-1 flex-col overflow-hidden">
 
+        {/* Conversation title */}
+        {conversationId && (() => {
+          const title = conversations.find(c => c.id === conversationId)?.title
+          return title ? (
+            <div className="shrink-0 px-4 py-3 border-b border-white/5">
+              <p className="text-white/30 text-sm font-medium truncate max-w-2xl mx-auto text-center">{title}</p>
+            </div>
+          ) : null
+        })()}
+
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <ScrollArea className="flex-1">
+        <div className="px-4 py-6">
           <div className="mx-auto max-w-2xl space-y-6">
 
             {messages.length === 0 && !thinking && (
@@ -349,6 +363,7 @@ export default function ChatPage() {
             <div ref={bottomRef} />
           </div>
         </div>
+        </ScrollArea>
 
         {/* Input */}
         <div className="border-t border-white/8 px-4 py-4">

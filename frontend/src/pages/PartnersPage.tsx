@@ -89,6 +89,8 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -112,12 +114,7 @@ const KOOTAS: { key: keyof CompatibilityScore; label: string; max: number }[] = 
   { key: 'varna', label: 'Varna', max: 1 },
 ]
 
-const selectClass = (value: string) => [
-  'w-full h-9 rounded-md border border-input bg-transparent dark:bg-input/30 px-3 text-sm',
-  value ? 'text-foreground' : 'text-muted-foreground',
-  '[&>option]:bg-[#1e1e1e] [&>option]:text-white',
-  'focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer',
-].join(' ')
+
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -273,52 +270,64 @@ function PartnerFormDialog({ open, onClose, editing, onSaved }: PartnerFormProps
 
           <div className="space-y-1.5">
             <Label className="text-white/50 text-xs tracking-wide">Gender</Label>
-            <select value={gender} onChange={e => setGender(e.target.value)} className={selectClass(gender)}>
-              <option value="" disabled>Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
+            <Select value={gender} onValueChange={setGender}>
+              <SelectTrigger className="w-full h-9"><SelectValue placeholder="Select gender" /></SelectTrigger>
+              <SelectContent className="dark">
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-white/50 text-xs tracking-wide">Birth Date</Label>
             <div className="grid grid-cols-3 gap-2">
-              <select value={day} onChange={e => setDay(e.target.value)} className={selectClass(day)}>
-                <option value="" disabled>Day</option>
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={String(i + 1)}>{i + 1}</option>
-                ))}
-              </select>
-              <select value={month} onChange={e => setMonth(e.target.value)} className={selectClass(month)}>
-                <option value="" disabled>Month</option>
-                {MONTHS.map((m, i) => (
-                  <option key={i} value={String(i + 1)}>{m}</option>
-                ))}
-              </select>
-              <select value={year} onChange={e => setYear(e.target.value)} className={selectClass(year)}>
-                <option value="" disabled>Year</option>
-                {YEARS.map(y => (
-                  <option key={y} value={String(y)}>{y}</option>
-                ))}
-              </select>
+              <Select value={day} onValueChange={setDay}>
+                <SelectTrigger className="w-full h-9"><SelectValue placeholder="Day" /></SelectTrigger>
+                <SelectContent className="dark">
+                  {Array.from({ length: 31 }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="w-full h-9"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectContent className="dark">
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="w-full h-9"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectContent className="dark">
+                  {YEARS.map(y => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-white/50 text-xs tracking-wide">Birth Time</Label>
             <div className="grid grid-cols-2 gap-2">
-              <select value={hour} onChange={e => setHour(e.target.value)} className={selectClass(hour)}>
-                <option value="" disabled>Hour</option>
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={String(i)}>{String(i).padStart(2, '0')}:00</option>
-                ))}
-              </select>
-              <select value={minute} onChange={e => setMinute(e.target.value)} className={selectClass(minute)}>
-                <option value="" disabled>Minute</option>
-                {Array.from({ length: 60 }, (_, i) => (
-                  <option key={i} value={String(i)}>{String(i).padStart(2, '0')}</option>
-                ))}
-              </select>
+              <Select value={hour} onValueChange={setHour}>
+                <SelectTrigger className="w-full h-9"><SelectValue placeholder="Hour" /></SelectTrigger>
+                <SelectContent className="dark">
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}:00</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={minute} onValueChange={setMinute}>
+                <SelectTrigger className="w-full h-9"><SelectValue placeholder="Minute" /></SelectTrigger>
+                <SelectContent className="dark">
+                  {Array.from({ length: 60 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -620,7 +629,8 @@ export default function PartnersPage() {
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+        <ScrollArea className="flex-1">
+        <nav className="px-2 pb-4 space-y-0.5">
           {partnersLoading && (
             <p className="px-3 py-6 text-center text-sm text-white/20">Loading…</p>
           )}
@@ -659,6 +669,7 @@ export default function PartnersPage() {
             </div>
           ))}
         </nav>
+        </ScrollArea>
 
         <div className="flex items-center justify-between px-3 py-3 border-t border-white/8">
           <button
@@ -734,7 +745,8 @@ export default function PartnersPage() {
 
                 {/* Messages — score table scrolls with content */}
                 {(messages.length > 0 || streaming) && (
-                  <div className="flex-1 overflow-y-auto px-4 py-6">
+                  <ScrollArea className="flex-1">
+                  <div className="px-4 py-6">
                     <div className="mx-auto max-w-2xl space-y-6">
                       {compat?.score && (
                         <div className="rounded-2xl border border-white/8 p-4 mb-2" style={{ background: 'oklch(0.13 0 0)' }}>
@@ -769,6 +781,7 @@ export default function PartnersPage() {
                       <div ref={bottomRef} />
                     </div>
                   </div>
+                  </ScrollArea>
                 )}
 
                 {/* Chat input — only shown when analysis exists */}
