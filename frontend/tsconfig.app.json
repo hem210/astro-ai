@@ -21,7 +21,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path aliases — baseUrl not needed with moduleResolution: bundler */
+    /* Path aliases */
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

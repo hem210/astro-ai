@@ -375,7 +375,6 @@ export default function PartnersPage() {
   const [compatLoading, setCompatLoading] = useState(false)
 
   const [messages, setMessages] = useState<Message[]>([])
-  const [currentConvId, setCurrentConvId] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [thinking, setThinking] = useState(false)
@@ -403,17 +402,16 @@ export default function PartnersPage() {
     if (!partnerId) {
       setCompat(null)
       setMessages([])
-      setCurrentConvId(null)
+
       return
     }
     setCompatLoading(true)
     setMessages([])
-    setCurrentConvId(null)
     getCompatibility(partnerId)
       .then(state => {
         setCompat(state)
         setMessages(state.messages.map(m => ({ role: m.role, content: m.content })))
-        setCurrentConvId(state.conversation_id)
+
       })
       .catch(() => {
         toast.error('Failed to load compatibility data')
@@ -495,8 +493,7 @@ export default function PartnersPage() {
             return next
           })
         },
-        convId => {
-          setCurrentConvId(convId)
+        _convId => {
           // Refresh compat state to get the score
           getCompatibility(partnerId).then(state => {
             setCompat(state)
