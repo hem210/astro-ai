@@ -6,7 +6,7 @@ import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PlusIcon, TrashIcon, SendIcon, LogOut } from 'lucide-react'
-import { api, fetchSSE } from '@/api/client'
+import { api, fetchSSE, getApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -44,14 +44,6 @@ function relativeDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
-function getApiError(err: unknown): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const e = err as { response?: { data?: { detail?: string } } }
-    return e.response?.data?.detail ?? 'Something went wrong'
-  }
-  return 'Something went wrong'
-}
-
 // ---------------------------------------------------------------------------
 // ChatPage
 // ---------------------------------------------------------------------------
@@ -64,6 +56,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   // convTick increments to trigger sidebar refetch without needing a stable callback ref
   const [convTick, setConvTick] = useState(0)
+  const [sidebarError, setSidebarError] = useState(false)
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -76,9 +69,10 @@ export default function ChatPage() {
   // ── Load sidebar (async only — no synchronous setState in effect body) ────
 
   useEffect(() => {
+    setSidebarError(false)
     api.get<Conversation[]>('/conversations')
       .then(({ data }) => setConversations(data))
-      .catch(() => {}) // sidebar failure is non-fatal
+      .catch(() => setSidebarError(true))
   }, [convTick])
 
   // ── Load messages when conversationId changes ─────────────────────────────
@@ -132,10 +126,11 @@ export default function ChatPage() {
 
     try {
       const response = await fetchSSE('/conversations/chat', reqBody)
-      if (!response) return
 
       const reader = response.body!.getReader()
       const decoder = new TextDecoder()
+      let receivedDone = false
+      let receivedError = false
 
       const parser = createParser({
         onEvent(event) {
@@ -162,12 +157,14 @@ export default function ChatPage() {
           }
 
           if (data.error) {
+            receivedError = true
             setThinking(false)
             toast.error(data.error)
             setMessages(prev => prev.filter(m => !m.pending))
           }
 
           if (data.done && data.conversation_id) {
+            receivedDone = true
             setMessages(prev => prev.map(m => m.pending ? { ...m, pending: false } : m))
             if (!conversationId) {
               navigate(`/chat/${data.conversation_id}`, { replace: true })
@@ -181,6 +178,11 @@ export default function ChatPage() {
         const { done, value } = await reader.read()
         if (done) break
         parser.feed(decoder.decode(value, { stream: true }))
+      }
+
+      if (!receivedDone && !receivedError) {
+        toast.error('Connection interrupted. Please try again.')
+        setMessages(prev => prev.map(m => m.pending ? { ...m, pending: false } : m))
       }
     } catch (err) {
       setThinking(false)
@@ -285,8 +287,11 @@ export default function ChatPage() {
             </div>
           ))}
 
-          {conversations.length === 0 && (
+          {conversations.length === 0 && !sidebarError && (
             <p className="px-3 py-6 text-center text-sm text-white/20">No conversations yet</p>
+          )}
+          {conversations.length === 0 && sidebarError && (
+            <p className="px-3 py-6 text-center text-xs text-red-400/50">Failed to load</p>
           )}
         </nav>
         </ScrollArea>

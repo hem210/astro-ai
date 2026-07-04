@@ -8,10 +8,11 @@ POST /compatibility/{partner_id}/chat     — SSE stream; follow-up on latest co
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.core.limiter import limiter, get_user_key
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
 from app.db.models import BirthProfile, Conversation, User
@@ -81,7 +82,9 @@ def get_compatibility(
 # ---------------------------------------------------------------------------
 
 @router.post("/{partner_id}/analyze")
+@limiter.limit("5/minute", key_func=get_user_key)
 def analyze(
+    request: Request,
     partner_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -123,7 +126,9 @@ def analyze(
 # ---------------------------------------------------------------------------
 
 @router.post("/{partner_id}/chat")
+@limiter.limit("5/minute", key_func=get_user_key)
 def chat(
+    request: Request,
     partner_id: uuid.UUID,
     body: CompatibilityChatRequest,
     db: Session = Depends(get_db),

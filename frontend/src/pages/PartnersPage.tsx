@@ -6,7 +6,7 @@ import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PlusIcon, TrashIcon, SendIcon, LogOut, PencilIcon, RefreshCwIcon } from 'lucide-react'
-import { api, fetchSSE } from '@/api/client'
+import { api, fetchSSE, getApiError } from '@/api/client'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,14 +119,6 @@ const KOOTAS: { key: keyof CompatibilityScore; label: string; max: number }[] = 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getApiError(err: unknown): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const e = err as { response?: { data?: { detail?: string } } }
-    return e.response?.data?.detail ?? 'Something went wrong'
-  }
-  return 'Something went wrong'
-}
 
 function scoreBarColor(val: number, max: number): string {
   if (val === 0) return 'bg-white/10'
@@ -441,6 +433,7 @@ export default function PartnersPage() {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
     let firstToken = false
+    let finished = false
 
     const parser = createParser({
       onEvent(event) {
@@ -452,11 +445,13 @@ export default function PartnersPage() {
           onToken(data.token)
         }
         if (data.error) {
+          finished = true
           setThinking(false)
           toast.error(data.error)
           setMessages(prev => prev.filter(m => !m.pending))
         }
         if (data.done && data.conversation_id) {
+          finished = true
           setMessages(prev => prev.map(m => m.pending ? { ...m, pending: false } : m))
           onDone(data.conversation_id!)
         }
@@ -467,6 +462,11 @@ export default function PartnersPage() {
       const { done, value } = await reader.read()
       if (done) break
       parser.feed(decoder.decode(value, { stream: true }))
+    }
+
+    if (!finished) {
+      toast.error('Connection interrupted. Please try again.')
+      setMessages(prev => prev.map(m => m.pending ? { ...m, pending: false } : m))
     }
   }
 
@@ -481,7 +481,6 @@ export default function PartnersPage() {
 
     try {
       const response = await fetchSSE(`/compatibility/${partnerId}/analyze`, '{}')
-      if (!response) return
 
       await readStream(
         response,
@@ -529,7 +528,6 @@ export default function PartnersPage() {
         `/compatibility/${partnerId}/chat`,
         JSON.stringify({ message: text }),
       )
-      if (!response) return
 
       await readStream(
         response,

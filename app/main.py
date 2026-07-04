@@ -5,8 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import kundali, matchmaking
 from app.routes import auth, profile, conversations, compatibility
+from app.core.limiter import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(title="Astro AI")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # ---------------------------------------------------------------------------
 # CORS

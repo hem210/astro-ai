@@ -66,7 +66,18 @@ export async function refreshToken(): Promise<string | null> {
 // SSE fetch with auth + 401 retry
 // ---------------------------------------------------------------------------
 
-export async function fetchSSE(url: string, body: string): Promise<Response | null> {
+export function getApiError(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const e = err as { response?: { status?: number; data?: { detail?: string } } }
+    if ((e.response?.status ?? 0) >= 500) return 'Something went wrong. Please try again.'
+    return e.response?.data?.detail ?? 'Something went wrong'
+  }
+  if (err instanceof TypeError) return 'Connection failed. Please check your network.'
+  if (err instanceof Error) return err.message
+  return 'Something went wrong'
+}
+
+export async function fetchSSE(url: string, body: string): Promise<Response> {
   const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
   let token = getAccessToken()
   let response = await fetch(`${BASE}${url}`, {
@@ -77,7 +88,7 @@ export async function fetchSSE(url: string, body: string): Promise<Response | nu
   })
   if (response.status === 401) {
     token = await refreshToken()
-    if (!token) return null
+    if (!token) throw new Error('Session expired. Please sign in again.')
     response = await fetch(`${BASE}${url}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -85,6 +96,12 @@ export async function fetchSSE(url: string, body: string): Promise<Response | nu
       body,
     })
   }
-  if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+  if (!response.ok || !response.body) {
+    throw new Error(
+      response.status >= 500 ? 'Server error. Please try again.' :
+      response.status === 429 ? 'Too many requests. Please wait a moment.' :
+      'Request failed. Please try again.'
+    )
+  }
   return response
 }
