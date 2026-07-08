@@ -49,10 +49,26 @@ interface CompatibilityScore {
   total: number
 }
 
+interface MangalDoshaResult {
+  has_dosha: boolean
+  mars_house: number
+  severity: 'high' | 'medium' | 'mild' | null
+  cancelled: boolean
+  cancellation_reasons: string[]
+  mars_sign: string
+}
+
+interface MangalDoshaCompatibility {
+  user: MangalDoshaResult
+  partner: MangalDoshaResult
+  pairing: 'none' | 'balanced' | 'asymmetric'
+}
+
 interface CompatibilityState {
   score: CompatibilityScore | null
   conversation_id: string | null
   messages: { id: string; role: 'user' | 'assistant'; content: string }[]
+  mangal_dosha: MangalDoshaCompatibility | null
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +154,36 @@ function formatBirthDate(p: PartnerProfile): string {
   return `${p.day} ${MONTHS[p.month - 1]} ${p.year} · ${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')} · ${p.birth_place}`
 }
 
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+function doshaDotClass(r: MangalDoshaResult): string {
+  if (r.cancelled) return 'bg-white/20'
+  if (!r.has_dosha) return 'bg-white/10'
+  if (r.severity === 'high') return 'bg-rose-400'
+  if (r.severity === 'medium') return 'bg-amber-400'
+  return 'bg-white/40'
+}
+
+function doshaStatusText(r: MangalDoshaResult): string {
+  if (r.cancelled) return 'Cancelled'
+  if (!r.has_dosha) return 'No dosha'
+  if (r.severity === 'high') return 'High'
+  if (r.severity === 'medium') return 'Medium'
+  return 'Mild'
+}
+
+function doshaStatusClass(r: MangalDoshaResult): string {
+  if (r.cancelled) return 'text-emerald-400/60'
+  if (!r.has_dosha) return 'text-white/30'
+  if (r.severity === 'high') return 'text-rose-400/75 font-medium'
+  if (r.severity === 'medium') return 'text-amber-400/75 font-medium'
+  return 'text-white/40'
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -175,6 +221,42 @@ function ScoreTable({ score }: { score: CompatibilityScore }) {
   )
 }
 
+function DoshaRow({ result, name }: { result: MangalDoshaResult; name: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs">
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${doshaDotClass(result)}`} />
+      <span className="text-white/60">{name}</span>
+      <span className="text-white/15">·</span>
+      <span className="text-white/40">{ordinal(result.mars_house)} house</span>
+      <span className="text-white/15">·</span>
+      <span className={doshaStatusClass(result)}>{doshaStatusText(result)}</span>
+    </div>
+  )
+}
+
+function MangalDoshaSection({ dosha, userName, partnerName }: {
+  dosha: MangalDoshaCompatibility
+  userName: string
+  partnerName: string
+}) {
+  const pairingLabel = dosha.pairing === 'asymmetric' ? 'Asymmetric' : dosha.pairing === 'balanced' ? 'Balanced' : 'None'
+  const pairingColor = dosha.pairing === 'asymmetric' ? 'text-amber-400/50' : 'text-white/30'
+  return (
+    <>
+      <div className="border-t border-white/6 my-4" />
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-white/20 text-xs">Mangal Dosha</span>
+        <span className="text-white/15 text-xs">·</span>
+        <span className={`text-xs ${pairingColor}`}>{pairingLabel}</span>
+      </div>
+      <div className="space-y-1.5">
+        <DoshaRow result={dosha.user} name={userName} />
+        <DoshaRow result={dosha.partner} name={partnerName} />
+      </div>
+    </>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Partner form (used for both create and edit)
 // ---------------------------------------------------------------------------
@@ -187,31 +269,15 @@ interface PartnerFormProps {
 }
 
 function PartnerFormDialog({ open, onClose, editing, onSaved }: PartnerFormProps) {
-  const [name, setName] = useState('')
-  const [gender, setGender] = useState('')
-  const [day, setDay] = useState('')
-  const [month, setMonth] = useState('')
-  const [year, setYear] = useState('')
-  const [hour, setHour] = useState('')
-  const [minute, setMinute] = useState('')
-  const [place, setPlace] = useState('')
+  const [name, setName] = useState(editing?.name ?? '')
+  const [gender, setGender] = useState(editing?.gender ?? '')
+  const [day, setDay] = useState(editing ? String(editing.day) : '')
+  const [month, setMonth] = useState(editing ? String(editing.month) : '')
+  const [year, setYear] = useState(editing ? String(editing.year) : '')
+  const [hour, setHour] = useState(editing ? String(editing.hour) : '')
+  const [minute, setMinute] = useState(editing ? String(editing.minute) : '')
+  const [place, setPlace] = useState(editing?.birth_place ?? '')
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (editing) {
-      setName(editing.name)
-      setGender(editing.gender)
-      setDay(String(editing.day))
-      setMonth(String(editing.month))
-      setYear(String(editing.year))
-      setHour(String(editing.hour))
-      setMinute(String(editing.minute))
-      setPlace(editing.birth_place)
-    } else {
-      setName(''); setGender(''); setDay(''); setMonth(''); setYear('')
-      setHour(''); setMinute(''); setPlace('')
-    }
-  }, [editing, open])
 
   async function handleSubmit() {
     if (!name.trim() || !gender || !day || !month || !year || !hour || !minute || !place.trim()) {
@@ -363,8 +429,7 @@ export default function PartnersPage() {
   const [partners, setPartners] = useState<PartnerProfile[]>([])
   const [partnersLoading, setPartnersLoading] = useState(true)
 
-  const [compat, setCompat] = useState<CompatibilityState | null>(null)
-  const [compatLoading, setCompatLoading] = useState(false)
+  const [compatFetch, setCompatFetch] = useState<{ fetchedFor: string; data: CompatibilityState } | null>(null)
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -372,6 +437,7 @@ export default function PartnersPage() {
   const [thinking, setThinking] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
+  const [formKey, setFormKey] = useState(0)
   const [editingPartner, setEditingPartner] = useState<PartnerProfile | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [regenerateOpen, setRegenerateOpen] = useState(false)
@@ -391,25 +457,16 @@ export default function PartnersPage() {
   // ── Load compatibility state when partner changes ──────────────────────────
 
   useEffect(() => {
-    if (!partnerId) {
-      setCompat(null)
-      setMessages([])
-
-      return
-    }
-    setCompatLoading(true)
-    setMessages([])
+    if (!partnerId) return
     getCompatibility(partnerId)
       .then(state => {
-        setCompat(state)
+        setCompatFetch({ fetchedFor: partnerId, data: state })
         setMessages(state.messages.map(m => ({ role: m.role, content: m.content })))
-
       })
       .catch(() => {
         toast.error('Failed to load compatibility data')
         navigate('/partners', { replace: true })
       })
-      .finally(() => setCompatLoading(false))
   }, [partnerId, navigate])
 
   // ── Auto-scroll ────────────────────────────────────────────────────────────
@@ -492,10 +549,9 @@ export default function PartnersPage() {
             return next
           })
         },
-        _convId => {
-          // Refresh compat state to get the score
+        () => {
           getCompatibility(partnerId).then(state => {
-            setCompat(state)
+            setCompatFetch({ fetchedFor: partnerId, data: state })
           }).catch(() => {})
         },
       )
@@ -587,6 +643,8 @@ export default function PartnersPage() {
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const selectedPartner = partners.find(p => p.id === partnerId)
+  const compat = compatFetch?.fetchedFor === partnerId ? compatFetch.data : null
+  const compatLoading = !!partnerId && compatFetch?.fetchedFor !== partnerId
   const hasAnalysis = !!(compat?.score && messages.length > 0)
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -617,7 +675,7 @@ export default function PartnersPage() {
             variant="outline"
             size="sm"
             className="w-full justify-start gap-2 text-white/60 hover:text-white border-white/10"
-            onClick={() => { setEditingPartner(null); setFormOpen(true) }}
+            onClick={() => { setEditingPartner(null); setFormKey(k => k + 1); setFormOpen(true) }}
           >
             <PlusIcon className="size-3.5" />
             Add partner
@@ -649,7 +707,7 @@ export default function PartnersPage() {
               <p className="truncate text-sm font-medium leading-snug flex-1 min-w-0">{partner.name}</p>
               <div className="ml-2 shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
                 <button
-                  onClick={e => { e.stopPropagation(); setEditingPartner(partner); setFormOpen(true) }}
+                  onClick={e => { e.stopPropagation(); setEditingPartner(partner); setFormKey(k => k + 1); setFormOpen(true) }}
                   className="p-1 text-white/30 hover:text-white/70 transition-colors"
                 >
                   <PencilIcon className="size-3" />
@@ -746,6 +804,13 @@ export default function PartnersPage() {
                       {compat?.score && (
                         <div className="rounded-2xl border border-white/8 p-4 mb-2" style={{ background: 'oklch(0.13 0 0)' }}>
                           <ScoreTable score={compat.score} />
+                          {compat.mangal_dosha && (
+                            <MangalDoshaSection
+                              dosha={compat.mangal_dosha}
+                              userName={user?.name ?? 'You'}
+                              partnerName={selectedPartner?.name ?? 'Partner'}
+                            />
+                          )}
                         </div>
                       )}
                       {messages.map((msg, i) => (
@@ -822,6 +887,7 @@ export default function PartnersPage() {
 
       {/* ── Partner form dialog ── */}
       <PartnerFormDialog
+        key={formKey}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editingPartner}

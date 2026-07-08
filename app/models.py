@@ -99,3 +99,18 @@ class AshtakootaMatchScore(BaseModel):
     bhakoota: float = 0
     nadi: float = 0
     total: float = 0
+
+
+class MangalDoshaResult(BaseModel):
+    has_dosha: bool
+    mars_house: int
+    severity: str | None          # "high" | "medium" | "mild" | None
+    cancelled: bool
+    cancellation_reasons: list[str]
+    mars_sign: str
+
+
+class MangalDoshaCompatibility(BaseModel):
+    user: MangalDoshaResult
+    partner: MangalDoshaResult
+    pairing: str                  # "none" | "balanced" | "asymmetric"

@@ -25,6 +25,7 @@ from app.services.chat import db_messages_to_langchain
 from app.services.compatibility import (
     build_compatibility_system_prompt,
     compute_score,
+    compute_dosha_for_profiles,
     stream_compatibility_conversation,
 )
 
@@ -65,15 +66,17 @@ def get_compatibility(
 ):
     partner = _get_partner(partner_id, current_user.id, db)
     conv = _latest_conversation(partner_id, current_user.id, db)
+    user_profile = db.query(BirthProfile).filter_by(user_id=current_user.id, type="primary").first()
 
-    score = None
-    if partner.compatibility_score:
-        score = partner.compatibility_score
+    score = partner.compatibility_score
+
+    mangal_dosha = compute_dosha_for_profiles(user_profile, partner)
 
     return CompatibilityStateResponse(
         score=score,
         conversation_id=conv.id if conv else None,
         messages=conv.messages if conv else [],
+        mangal_dosha=mangal_dosha,
     )
 
 

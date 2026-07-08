@@ -11,7 +11,7 @@ from typing import Generator, Optional
 from app.db.base import SessionLocal
 from app.db.models import BirthProfile, Conversation, Message
 from app.logger import get_logger
-from app.models import AshtakootaMatchScore, BirthChart
+from app.models import AshtakootaMatchScore, BirthChart, MangalDoshaCompatibility, MangalDoshaResult
 from app.services.agent.astrology_agent import AstrologyAgent
 from app.services.usage import write_llm_usage
 from app.services.agent.config import COMPATIBILITY_SYSTEM_PROMPT
@@ -20,6 +20,7 @@ from app.services.ashtakoota_services.generate_profile import generate_ashtakoot
 from app.services.chat import _MONTH_NAMES
 from app.services.coord_utils import get_coordinates
 from app.services.kundali_chart import planets_calculation
+from app.services.mangal_dosha import compute_mangal_dosha_compatibility
 
 logger = get_logger("compatibility")
 
@@ -74,16 +75,17 @@ def compute_score(user_profile: BirthProfile, partner_profile: BirthProfile) -> 
 # System prompt builder
 # ---------------------------------------------------------------------------
 
-def _get_ashtakoota_profile(profile: BirthProfile):
+def _get_profile_data(profile: BirthProfile):
     coords = get_coordinates(profile.birth_place) or {"latitude": 23.03, "longitude": 72.62}
     chart = planets_calculation(BirthChart(
         day=profile.day, month=profile.month, year=profile.year,
         hour=profile.hour, minute=profile.minute, second=0,
         latitude=coords["latitude"], longitude=coords["longitude"],
     ))
-    return generate_ashtakoota_profile(
+    ashtakoota = generate_ashtakoota_profile(
         chart.planets["moon"].zodiac, chart.planets["moon"].deviation, chart.nakshatra
     )
+    return ashtakoota, chart
 
 
 def _format_birth_profile(profile: BirthProfile) -> str:
@@ -118,23 +120,73 @@ def _format_score(score: AshtakootaMatchScore) -> str:
     return "\n".join(lines)
 
 
+def _format_mangal_dosha(dosha: MangalDoshaCompatibility, user_label: str, partner_label: str) -> str:
+    _REASON_LABELS = {
+        "mars_own_sign": "Mars in own sign",
+        "mars_exalted": "Mars exalted",
+        "jupiter_aspect": "Jupiter aspects Mars",
+    }
+    _PAIRING_DESC = {
+        "none": "Neither partner has an active Mangal Dosha.",
+        "balanced": "Both partners have an active Mangal Dosha — pairing is balanced.",
+        "asymmetric": "One partner has an active Mangal Dosha, the other does not — pairing is asymmetric.",
+    }
+
+    def _one(result: MangalDoshaResult, label: str) -> str:
+        if not result.has_dosha:
+            return f"{label}:\nHas Dosha: No\nMars in house {result.mars_house} (not a dosha house)\nMars sign: {result.mars_sign}"
+        lines = [
+            f"{label}:",
+            f"Has Dosha: Yes",
+            f"Mars in house {result.mars_house} — severity: {result.severity}",
+            f"Cancelled: {'Yes' if result.cancelled else 'No'}",
+        ]
+        if result.cancellation_reasons:
+            reasons = ", ".join(_REASON_LABELS.get(r, r) for r in result.cancellation_reasons)
+            lines.append(f"Cancellation reasons: {reasons}")
+        lines.append(f"Mars sign: {result.mars_sign}")
+        return "\n".join(lines)
+
+    return (
+        _one(dosha.user, user_label)
+        + "\n\n"
+        + _one(dosha.partner, partner_label)
+        + f"\n\nPairing: {_PAIRING_DESC[dosha.pairing]}"
+    )
+
+
 def build_compatibility_system_prompt(
     user_profile: BirthProfile,
     partner_profile: BirthProfile,
     score: AshtakootaMatchScore,
 ) -> str:
     today = date.today().strftime("%B %d, %Y")
-    user_ap = _get_ashtakoota_profile(user_profile)
-    partner_ap = _get_ashtakoota_profile(partner_profile)
+    user_ap, user_chart = _get_profile_data(user_profile)
+    partner_ap, partner_chart = _get_profile_data(partner_profile)
     user_label = "GROOM" if user_profile.gender == "male" else "BRIDE"
     partner_label = "GROOM" if partner_profile.gender == "male" else "BRIDE"
+    dosha = compute_mangal_dosha_compatibility(user_chart, partner_chart)
     return (
         COMPATIBILITY_SYSTEM_PROMPT
         + f"\n\n### {user_label}'S BIRTH PROFILE\n{_format_birth_profile(user_profile)}\n{_format_ashtakoota_profile(user_ap)}"
         + f"\n\n### {partner_label}'S BIRTH PROFILE\n{_format_birth_profile(partner_profile)}\n{_format_ashtakoota_profile(partner_ap)}"
         + f"\n\n### ASHTAKOOTA COMPATIBILITY SCORE\n{_format_score(score)}"
+        + f"\n\n### MANGAL DOSHA\n{_format_mangal_dosha(dosha, user_label, partner_label)}"
         + f"\n\n### TODAY'S DATE\nToday is {today}."
     )
+
+
+# ---------------------------------------------------------------------------
+# Mangal Dosha — for GET route (charts computed independently of system prompt)
+# ---------------------------------------------------------------------------
+
+def compute_dosha_for_profiles(
+    user_profile: BirthProfile,
+    partner_profile: BirthProfile,
+) -> "MangalDoshaCompatibility":
+    _, user_chart = _get_profile_data(user_profile)
+    _, partner_chart = _get_profile_data(partner_profile)
+    return compute_mangal_dosha_compatibility(user_chart, partner_chart)
 
 
 # ---------------------------------------------------------------------------
