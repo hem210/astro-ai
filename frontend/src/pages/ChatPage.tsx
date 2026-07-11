@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { createParser } from 'eventsource-parser'
 import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { PlusIcon, TrashIcon, SendIcon, LogOut } from 'lucide-react'
+import { PlusIcon, TrashIcon, SendIcon, LogOut, MenuIcon } from 'lucide-react'
 import { api, fetchSSE, getApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -51,12 +51,14 @@ function relativeDate(iso: string): string {
 export default function ChatPage() {
   const { conversationId } = useParams<{ conversationId?: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { logout, user } = useAuth()
 
   const [conversations, setConversations] = useState<Conversation[]>([])
   // convTick increments to trigger sidebar refetch without needing a stable callback ref
   const [convTick, setConvTick] = useState(0)
   const [sidebarError, setSidebarError] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(location.state?.sidebarOpen ?? false)
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -206,6 +208,7 @@ export default function ChatPage() {
   function newChat() {
     setMessages([])
     setInput('')
+    setSidebarOpen(false)
     navigate('/chat', { replace: true })
     textareaRef.current?.focus()
   }
@@ -231,8 +234,21 @@ export default function ChatPage() {
   return (
     <div className="dark flex h-screen overflow-hidden" style={{ background: 'oklch(0.10 0 0)' }}>
 
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-white/8" style={{ background: 'oklch(0.13 0 0)' }}>
+      <aside
+        className={[
+          'fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col border-r border-white/8',
+          'transition-transform duration-300 ease-in-out',
+          'md:relative md:w-60 md:z-auto md:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        ].join(' ')}
+        style={{ background: 'oklch(0.13 0 0)' }}
+      >
         <div className="flex items-center px-4 py-4 border-b border-white/8">
           <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
         </div>
@@ -242,7 +258,7 @@ export default function ChatPage() {
             My Chat
           </button>
           <button
-            onClick={() => navigate('/partners')}
+            onClick={() => navigate('/partners', { state: { sidebarOpen } })}
             className="flex-1 py-2.5 text-xs font-medium text-white/30 hover:text-white/60 border-b-2 border-transparent transition-colors"
           >
             Partners
@@ -263,6 +279,7 @@ export default function ChatPage() {
               key={conv.id}
               onClick={() => {
                 setMessages([])
+                setSidebarOpen(false)
                 navigate(`/chat/${conv.id}`)
               }}
               className={[
@@ -280,7 +297,7 @@ export default function ChatPage() {
               </div>
               <button
                 onClick={(e) => deleteConversation(conv.id, e)}
-                className="ml-2 shrink-0 opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition-all"
+                className="ml-2 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-white/30 hover:text-red-400 transition-all"
               >
                 <TrashIcon className="size-3" />
               </button>
@@ -314,7 +331,18 @@ export default function ChatPage() {
       </aside>
 
       {/* ── Chat pane ── */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="flex flex-1 flex-col overflow-hidden min-w-0">
+
+        {/* Mobile header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8 shrink-0 md:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-white/40 hover:text-white/70 transition-colors"
+          >
+            <MenuIcon className="size-5" />
+          </button>
+          <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
+        </div>
 
         {/* Conversation title */}
         {conversationId && (() => {
@@ -342,13 +370,13 @@ export default function ChatPage() {
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'user' ? (
                   <div
-                    className="max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-base text-white"
+                    className="max-w-[85%] md:max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-base text-white"
                     style={{ background: 'oklch(0.22 0 0)' }}
                   >
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="prose prose-invert max-w-[85%] text-base text-white/80 leading-relaxed">
+                  <div className="prose prose-invert max-w-[90%] md:max-w-[85%] text-base text-white/80 leading-relaxed">
                     {msg.content && (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}

@@ -126,7 +126,7 @@ export default function OnboardingPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-white/8 p-7 space-y-6"
+          className="rounded-2xl border border-white/8 p-5 sm:p-7 space-y-6"
           style={{ background: 'oklch(0.16 0 0 / 0.85)', backdropFilter: 'blur(20px)' }}
         >
           {/* Gender */}

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { createParser } from 'eventsource-parser'
 import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { PlusIcon, TrashIcon, SendIcon, LogOut, PencilIcon, RefreshCwIcon } from 'lucide-react'
+import { PlusIcon, TrashIcon, SendIcon, LogOut, PencilIcon, RefreshCwIcon, MenuIcon } from 'lucide-react'
 import { api, fetchSSE, getApiError } from '@/api/client'
 
 // ---------------------------------------------------------------------------
@@ -424,6 +424,7 @@ interface Message {
 export default function PartnersPage() {
   const { partnerId } = useParams<{ partnerId?: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { logout, user } = useAuth()
 
   const [partners, setPartners] = useState<PartnerProfile[]>([])
@@ -436,6 +437,7 @@ export default function PartnersPage() {
   const [streaming, setStreaming] = useState(false)
   const [thinking, setThinking] = useState(false)
 
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(location.state?.sidebarOpen ?? false)
   const [formOpen, setFormOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
   const [editingPartner, setEditingPartner] = useState<PartnerProfile | null>(null)
@@ -618,9 +620,7 @@ export default function PartnersPage() {
   function handleSaved(saved: PartnerProfile, wasEdit: boolean) {
     if (wasEdit) {
       setPartners(prev => prev.map(p => p.id === saved.id ? saved : p))
-      if (partnerId === saved.id && compat?.score) {
-        toast.info('Partner updated. Regenerate the analysis to reflect the changes.')
-      }
+      toast.info('Partner updated. Regenerate the analysis to reflect the changes.')
     } else {
       setPartners(prev => [...prev, saved])
       navigate(`/partners/${saved.id}`)
@@ -643,7 +643,7 @@ export default function PartnersPage() {
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const selectedPartner = partners.find(p => p.id === partnerId)
-  const compat = compatFetch?.fetchedFor === partnerId ? compatFetch.data : null
+  const compat = compatFetch && compatFetch.fetchedFor === partnerId ? compatFetch.data : null
   const compatLoading = !!partnerId && compatFetch?.fetchedFor !== partnerId
   const hasAnalysis = !!(compat?.score && messages.length > 0)
 
@@ -652,15 +652,28 @@ export default function PartnersPage() {
   return (
     <div className="dark flex h-screen overflow-hidden" style={{ background: 'oklch(0.10 0 0)' }}>
 
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-white/8" style={{ background: 'oklch(0.13 0 0)' }}>
+      <aside
+        className={[
+          'fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col border-r border-white/8',
+          'transition-transform duration-300 ease-in-out',
+          'md:relative md:w-60 md:z-auto md:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        ].join(' ')}
+        style={{ background: 'oklch(0.13 0 0)' }}
+      >
         <div className="flex items-center px-4 py-4 border-b border-white/8">
           <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
         </div>
 
         <div className="flex border-b border-white/8">
           <button
-            onClick={() => navigate('/chat')}
+            onClick={() => navigate('/chat', { state: { sidebarOpen } })}
             className="flex-1 py-2.5 text-xs font-medium text-white/30 hover:text-white/60 border-b-2 border-transparent transition-colors"
           >
             My Chat
@@ -695,6 +708,7 @@ export default function PartnersPage() {
               key={partner.id}
               onClick={() => {
                 setMessages([])
+                setSidebarOpen(false)
                 navigate(`/partners/${partner.id}`)
               }}
               className={[
@@ -705,7 +719,7 @@ export default function PartnersPage() {
               ].join(' ')}
             >
               <p className="truncate text-sm font-medium leading-snug flex-1 min-w-0">{partner.name}</p>
-              <div className="ml-2 shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+              <div className="ml-2 shrink-0 flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                 <button
                   onClick={e => { e.stopPropagation(); setEditingPartner(partner); setFormKey(k => k + 1); setFormOpen(true) }}
                   className="p-1 text-white/30 hover:text-white/70 transition-colors"
@@ -742,7 +756,18 @@ export default function PartnersPage() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="flex flex-1 flex-col overflow-hidden min-w-0">
+
+        {/* Mobile header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8 shrink-0 md:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-white/40 hover:text-white/70 transition-colors"
+          >
+            <MenuIcon className="size-5" />
+          </button>
+          <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
+        </div>
 
         {/* No partner selected */}
         {!partnerId && (
@@ -817,13 +842,13 @@ export default function PartnersPage() {
                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                           {msg.role === 'user' ? (
                             <div
-                              className="max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-base text-white"
+                              className="max-w-[85%] md:max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-base text-white"
                               style={{ background: 'oklch(0.22 0 0)' }}
                             >
                               {msg.content}
                             </div>
                           ) : (
-                            <div className="prose prose-invert max-w-[85%] text-base text-white/80 leading-relaxed">
+                            <div className="prose prose-invert max-w-[90%] md:max-w-[85%] text-base text-white/80 leading-relaxed">
                               {msg.content && (
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                   {msg.content}
