@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
+from app.core.quota import get_usage
 from app.db.base import get_db
 from app.db.models import BirthProfile, User
 from app.schemas.birth_profile import (
@@ -23,7 +24,7 @@ from app.schemas.birth_profile import (
     BirthProfileResponse,
     BirthProfileUpdate,
 )
-from app.schemas.user import UpdateProfileRequest, UserResponse
+from app.schemas.user import QuotaResponse, UpdateProfileRequest, UserResponse
 
 router = APIRouter(tags=["profile"])
 
@@ -35,6 +36,15 @@ router = APIRouter(tags=["profile"])
 @router.get("/profile", response_model=UserResponse)
 def get_profile(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/quota", response_model=QuotaResponse)
+def get_quota(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    used, limit = get_usage(current_user.id, db)
+    return QuotaResponse(questions_used=used, questions_limit=limit)
 
 
 @router.put("/profile", response_model=UserResponse)

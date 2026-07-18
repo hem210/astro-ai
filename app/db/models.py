@@ -143,6 +143,21 @@ class LLMUsage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class Allowlist(Base):
+    __tablename__ = "allowlist"
+
+    email: Mapped[str] = mapped_column(String, primary_key=True)
+
+
+class UserQuota(Base):
+    __tablename__ = "user_quota"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    questions_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 

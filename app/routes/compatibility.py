@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.limiter import limiter, get_user_key
 from app.core.dependencies import get_current_user
+from app.core.quota import check_and_increment
 from app.db.base import get_db
 from app.db.models import BirthProfile, Conversation, User
 from app.models import AshtakootaMatchScore
@@ -97,6 +98,8 @@ def analyze(
     if not user_profile:
         raise HTTPException(status_code=400, detail="No primary birth profile found")
 
+    check_and_increment(current_user.id, db)
+
     score = compute_score(user_profile, partner)
 
     # Persist score on partner profile
@@ -145,6 +148,8 @@ def chat(
     conv = _latest_conversation(partner_id, current_user.id, db)
     if not conv:
         raise HTTPException(status_code=404, detail="No analysis found. Generate an analysis first.")
+
+    check_and_increment(current_user.id, db)
 
     if not partner.compatibility_score:
         raise HTTPException(status_code=400, detail="Compatibility score not found")
