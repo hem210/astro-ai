@@ -101,6 +101,17 @@ class AshtakootaMatchScore(BaseModel):
     total: float = 0
 
 
+class NavamsaPlanetData(BaseModel):
+    name: str
+    zodiac: str
+    house: int
+
+
+class NavamsaChart(BaseModel):
+    ascendant_sign: str
+    planets: Dict[str, NavamsaPlanetData]
+
+
 class MangalDoshaResult(BaseModel):
     has_dosha: bool
     mars_house: int

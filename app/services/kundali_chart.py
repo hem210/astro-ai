@@ -1,6 +1,6 @@
 import swisseph as swe
 from datetime import datetime, timedelta
-from app.models import BirthChart, KundaliChart, PlanetData
+from app.models import BirthChart, KundaliChart, NavamsaChart, NavamsaPlanetData, PlanetData
 from app.config import ZODIACS, PLANETS, NAKSHATRAS
 
 # Set the ayanamsa to Lahiri (sidereal)
@@ -121,6 +121,41 @@ def planets_calculation(birth_chart: BirthChart) -> KundaliChart:
         planets=planets_data,
         moon_zodiac=planets_data['moon'].zodiac,
         moon_deviate=planets_data['moon'].deviation,
+    )
+
+
+# Navamsa starting sign per D1 sign
+# Fire (1,5,9)→Aries(1)  Earth (2,6,10)→Capricorn(10)
+# Air  (3,7,11)→Libra(7) Water (4,8,12)→Cancer(4)
+_NAVAMSA_START = {
+    1: 1, 2: 10, 3: 7,  4: 4,
+    5: 1, 6: 10, 7: 7,  8: 4,
+    9: 1, 10: 10, 11: 7, 12: 4,
+}
+
+
+def _d9_sign_num(longitude: float) -> int:
+    d1_sign = int(longitude / 30) + 1
+    pada = int((longitude % 30) / (30 / 9))
+    return (_NAVAMSA_START[d1_sign] - 1 + pada) % 12 + 1
+
+
+def calculate_navamsa(kundali: KundaliChart) -> NavamsaChart:
+    asc_sign_num = _d9_sign_num(kundali.ascendant)
+
+    planets: dict[str, NavamsaPlanetData] = {}
+    for name, planet in kundali.planets.items():
+        sign_num = _d9_sign_num(planet.position)
+        house = (sign_num - asc_sign_num) % 12 + 1
+        planets[name] = NavamsaPlanetData(
+            name=name,
+            zodiac=ZODIACS[sign_num]["name"],
+            house=house,
+        )
+
+    return NavamsaChart(
+        ascendant_sign=ZODIACS[asc_sign_num]["name"],
+        planets=planets,
     )
 
 
