@@ -7,6 +7,7 @@ A full-stack Vedic astrology web application. It calculates natal charts, divisi
 The app is built around a logged-in user who has a birth profile. From that profile it computes their Kundali and lets them:
 
 - **Chat with an AI astrologer** — a LangGraph agent that calls tools to generate the natal chart, query a curated Vedic knowledge base, compute Vimshottari dasha periods, and pull divisional charts (D9/D10/D12) depending on the question. Career questions get the Dashamsha, marriage questions get the Navamsa.
+- **View their kundali** — D1/D9/D10/D12 charts rendered as North Indian (fixed houses, diamond layout) or South Indian (fixed signs, grid layout) styles, with a planet table showing sign, house, and degree.
 - **Run partner compatibility** — add a partner's birth details, get an Ashtakoota score (0–36) across all 8 kootas, Mangal Dosha analysis with cancellation detection, and a streaming AI explanation of what the scores mean together.
 - **Find best matches** — sweeps all 36 Rashi-Nakshatra combinations, scores each against the user's profile, surfaces Nadi and Bhakoota doshas with cancellation logic, and shows the name syllables (namakarana aksharas) for each candidate.
 
@@ -79,13 +80,13 @@ app/
     match_finder.py        # Best-matches sweep with dosha detection
     vimshottari.py         # Dasha period computation
   db/              # SQLAlchemy models and session
-  core/            # Auth, quota, rate limiting
+  core/            # Auth, rate limiting
   data/            # vedic_knowledge_base.json
 
 frontend/
   src/
-    pages/         # ChatPage, PartnersPage, MatchesPage, OnboardingPage, …
-    components/    # shadcn/ui components
+    pages/         # HomePage, ChatPage, ChartPage, PartnersPage, MatchesPage, OnboardingPage, …
+    components/    # AppNav, chart/ (North/South Indian chart rendering), shadcn/ui components
     api/           # Axios client + SSE fetch helper
 
 alembic/           # DB migrations
