@@ -19,6 +19,3 @@ class UpdateProfileRequest(BaseModel):
     name: str
 
 
-class QuotaResponse(BaseModel):
-    questions_used: int
-    questions_limit: int

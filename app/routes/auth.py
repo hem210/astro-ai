@@ -25,7 +25,7 @@ from app.core.auth import (
 )
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
-from app.db.models import Allowlist, RefreshToken, User
+from app.db.models import RefreshToken, User
 from app.schemas.auth import LoginRequest, SignupRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -57,9 +57,6 @@ def _clear_refresh_cookie(response: Response) -> None:
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 def signup(request: Request, body: SignupRequest, response: Response, db: Session = Depends(get_db)):
-    if not db.query(Allowlist).filter(Allowlist.email == body.email.lower()).first():
-        raise HTTPException(status_code=403, detail="This email is not on the waitlist.")
-
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 

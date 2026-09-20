@@ -437,8 +437,6 @@ export default function PartnersPage() {
   const [streaming, setStreaming] = useState(false)
   const [thinking, setThinking] = useState(false)
 
-  const [quota, setQuota] = useState<{ questions_used: number; questions_limit: number } | null>(null)
-
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(location.state?.sidebarOpen ?? false)
   const [formOpen, setFormOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
@@ -449,20 +447,13 @@ export default function PartnersPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  function fetchQuota() {
-    api.get<{ questions_used: number; questions_limit: number }>('/quota')
-      .then(({ data }) => setQuota(data))
-      .catch(() => {})
-  }
-
-  // ── Load partners list + quota ─────────────────────────────────────────────
+  // ── Load partners list ─────────────────────────────────────────────────────
 
   useEffect(() => {
     listPartners()
       .then(setPartners)
       .catch(() => toast.error('Failed to load partners'))
       .finally(() => setPartnersLoading(false))
-    fetchQuota()
   }, [])
 
   // ── Load compatibility state when partner changes ──────────────────────────
@@ -541,7 +532,7 @@ export default function PartnersPage() {
   // ── Generate analysis ──────────────────────────────────────────────────────
 
   async function generateAnalysis() {
-    if (!partnerId || streaming || quotaExhausted) return
+    if (!partnerId || streaming) return
     setRegenerateOpen(false)
     setStreaming(true)
     setThinking(true)
@@ -564,7 +555,6 @@ export default function PartnersPage() {
           getCompatibility(partnerId).then(state => {
             setCompatFetch({ fetchedFor: partnerId, data: state })
           }).catch(() => {})
-          fetchQuota()
         },
       )
     } catch (err) {
@@ -580,7 +570,7 @@ export default function PartnersPage() {
 
   async function sendMessage() {
     const text = input.trim()
-    if (!text || streaming || !partnerId || quotaExhausted) return
+    if (!text || streaming || !partnerId) return
 
     setInput('')
     setStreaming(true)
@@ -607,7 +597,7 @@ export default function PartnersPage() {
             return next
           })
         },
-        () => { fetchQuota() },
+        () => {},
       )
     } catch (err) {
       toast.error(getApiError(err))
@@ -656,7 +646,6 @@ export default function PartnersPage() {
   const compat = compatFetch && compatFetch.fetchedFor === partnerId ? compatFetch.data : null
   const compatLoading = !!partnerId && compatFetch?.fetchedFor !== partnerId
   const hasAnalysis = !!(compat?.score && messages.length > 0)
-  const quotaExhausted = quota !== null && quota.questions_used >= quota.questions_limit
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -827,10 +816,7 @@ export default function PartnersPage() {
                   <div className="flex flex-1 items-center justify-center">
                     <div className="text-center">
                       <p className="text-white/20 text-sm mb-4">No compatibility analysis yet</p>
-                      <Button onClick={generateAnalysis} disabled={quotaExhausted}>Generate Analysis</Button>
-                      {quotaExhausted && (
-                        <p className="text-[11px] text-red-400/50 mt-2">Question limit reached</p>
-                      )}
+                      <Button onClick={generateAnalysis}>Generate Analysis</Button>
                     </div>
                   </div>
                 )}
@@ -896,31 +882,24 @@ export default function PartnersPage() {
                           value={input}
                           onChange={e => setInput(e.target.value)}
                           onKeyDown={handleKeyDown}
-                          placeholder={quotaExhausted ? 'Question limit reached' : 'Ask about your compatibility…'}
+                          placeholder="Ask about your compatibility…"
                           rows={1}
-                          disabled={streaming || quotaExhausted}
+                          disabled={streaming}
                           className="flex-1 resize-none bg-transparent text-base text-white placeholder:text-white/25 outline-none disabled:opacity-50"
                           style={{ maxHeight: '160px' }}
                         />
                         <Button
                           size="icon"
                           onClick={sendMessage}
-                          disabled={!input.trim() || streaming || quotaExhausted}
+                          disabled={!input.trim() || streaming}
                           title="Send message"
                           className="shrink-0 size-8"
                         >
                           <SendIcon className="size-3.5" />
                         </Button>
                       </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <p className="text-[10px] text-white/15">
-                          {quotaExhausted ? "You've reached your question limit for this beta." : 'Enter to send · Shift+Enter for new line'}
-                        </p>
-                        {quota !== null && (
-                          <p className={`text-[10px] ${quotaExhausted ? 'text-red-400/50' : 'text-white/20'}`}>
-                            {quota.questions_limit - quota.questions_used} of {quota.questions_limit} remaining
-                          </p>
-                        )}
+                      <div className="mt-2">
+                        <p className="text-[10px] text-white/15">Enter to send · Shift+Enter for new line</p>
                       </div>
                     </div>
                   </div>
@@ -967,7 +946,7 @@ export default function PartnersPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRegenerateOpen(false)}>Cancel</Button>
-            <Button onClick={generateAnalysis} disabled={quotaExhausted}>Regenerate</Button>
+            <Button onClick={generateAnalysis}>Regenerate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

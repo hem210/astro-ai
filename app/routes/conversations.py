@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.core.limiter import limiter, get_user_key
 from app.core.dependencies import get_current_user
-from app.core.quota import check_and_increment
 from app.db.base import get_db
 from app.db.models import BirthProfile, Conversation, User
 from app.schemas.conversation import ChatRequest, ConversationResponse, MessageResponse
@@ -112,8 +111,6 @@ def chat(
             status_code=400,
             detail="No primary birth profile found. Please complete onboarding.",
         )
-
-    check_and_increment(current_user.id, db)
 
     system_prompt = build_chat_system_prompt(format_birth_context(birth_profile))
 
