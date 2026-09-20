@@ -45,16 +45,17 @@ class PlanetData(BaseModel):
     position: float  # Internal use only - not exposed in API responses
     house: int
     zodiac: str
-    deviation: float  # Internal use only - not exposed in API responses
+    deviation: float  # Degree within sign, 0-30 — exposed as "degree"
     retrograde: bool
-    
+
     @model_serializer
     def serialize_model(self) -> Dict[str, Any]:
-        """Exclude position and deviation from serialization."""
+        """Exclude position from serialization; expose deviation as degree."""
         return {
             "name": self.name,
             "house": self.house,
             "zodiac": self.zodiac,
+            "degree": round(self.deviation, 2),
             "retrograde": self.retrograde
         }
 

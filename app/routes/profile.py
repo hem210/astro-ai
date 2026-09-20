@@ -13,19 +13,37 @@ Rules enforced at application layer:
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
 from app.db.models import BirthProfile, User
+from app.models import BirthChart, KundaliChart, VargaChart
 from app.schemas.birth_profile import (
     BirthProfileCreate,
     BirthProfileResponse,
     BirthProfileUpdate,
 )
 from app.schemas.user import UpdateProfileRequest, UserResponse
+from app.services.coord_utils import get_coordinates
+from app.services.kundali_chart import (
+    calculate_dashamsha,
+    calculate_dvadashamsha,
+    calculate_navamsa,
+    planets_calculation,
+)
 
 router = APIRouter(tags=["profile"])
+
+_DEFAULT_COORDS = {"latitude": 23.03, "longitude": 72.62}
+
+
+class KundaliBundle(BaseModel):
+    d1: KundaliChart
+    d9: VargaChart
+    d10: VargaChart
+    d12: VargaChart
 
 
 # ---------------------------------------------------------------------------
@@ -156,3 +174,37 @@ def delete_birth_profile(
 
     db.delete(profile)
     db.commit()
+
+
+@router.get("/birth-profiles/{profile_id}/kundali", response_model=KundaliBundle)
+def get_birth_profile_kundali(
+    profile_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(BirthProfile).filter(
+        BirthProfile.id == profile_id,
+        BirthProfile.user_id == current_user.id,
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    coords = get_coordinates(profile.birth_place) or _DEFAULT_COORDS
+    d1 = planets_calculation(BirthChart(
+        day=profile.day,
+        month=profile.month,
+        year=profile.year,
+        hour=profile.hour,
+        minute=profile.minute,
+        second=0,
+        latitude=coords["latitude"],
+        longitude=coords["longitude"],
+    ))
+
+    return KundaliBundle(
+        d1=d1,
+        d9=calculate_navamsa(d1),
+        d10=calculate_dashamsha(d1),
+        d12=calculate_dvadashamsha(d1),
+    )
