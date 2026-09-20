@@ -6,6 +6,7 @@ import type { KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PlusIcon, TrashIcon, SendIcon, LogOut, MenuIcon } from 'lucide-react'
+import { AppNav } from '@/components/AppNav'
 import { api, fetchSSE, getApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -252,17 +253,7 @@ export default function ChatPage() {
           <span className="text-amber-400 text-xs tracking-[0.2em] font-medium">✦ ASTRO AI</span>
         </div>
 
-        <div className="flex border-b border-white/8">
-          <button className="flex-1 py-2.5 text-xs font-medium text-white border-b-2 border-amber-400 transition-colors">
-            My Chat
-          </button>
-          <button
-            onClick={() => navigate('/partners', { state: { sidebarOpen } })}
-            className="flex-1 py-2.5 text-xs font-medium text-white/30 hover:text-white/60 border-b-2 border-transparent transition-colors"
-          >
-            Partners
-          </button>
-        </div>
+        <AppNav current="chat" />
 
         <div className="px-3 py-3">
           <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-white/60 hover:text-white border-white/10" onClick={newChat}>

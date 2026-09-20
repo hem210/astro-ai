@@ -226,15 +226,18 @@ export default function MatchesPage() {
 
         {/* Header bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/chat')}
-              className="text-amber-400 text-xs tracking-[0.2em] font-medium hover:text-amber-300 transition-colors"
-            >
-              ✦ ASTRO AI
-            </button>
-          </div>
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/')}
+            className="text-amber-400 text-xs tracking-[0.2em] font-medium hover:text-amber-300 transition-colors"
+          >
+            ✦ ASTRO AI
+          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => navigate('/')} className="px-2.5 py-1.5 text-xs text-white/30 hover:text-white/60 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">Home</button>
+            <button onClick={() => navigate('/chat')} className="px-2.5 py-1.5 text-xs text-white/30 hover:text-white/60 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">Ask AI</button>
+            <button onClick={() => navigate('/chart')} className="px-2.5 py-1.5 text-xs text-white/30 hover:text-white/60 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">Chart</button>
+            <button onClick={() => navigate('/partners')} className="px-2.5 py-1.5 text-xs text-white/30 hover:text-white/60 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">Partners</button>
+            <span className="w-px h-3.5 bg-white/10 mx-1.5" />
             <span className="text-white/30 text-sm">{user?.name}</span>
             <button
               onClick={logout}

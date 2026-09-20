@@ -64,7 +64,7 @@ export default function OnboardingPage() {
         minute: parseInt(minute),
         birth_place: birthPlace.trim(),
       })
-      navigate('/chat')
+      navigate('/')
     } catch (err) {
       toast.error(getApiError(err))
     } finally {

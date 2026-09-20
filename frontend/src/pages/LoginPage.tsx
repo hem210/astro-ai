@@ -49,7 +49,7 @@ export default function LoginPage() {
     try {
       await login(email, password)
       const { data: birthProfiles } = await api.get('/birth-profiles')
-      navigate(birthProfiles.length > 0 ? '/chat' : '/onboarding')
+      navigate(birthProfiles.length > 0 ? '/' : '/onboarding')
     } catch (err) {
       toast.error(getApiError(err))
     } finally {
