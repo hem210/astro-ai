@@ -14,7 +14,7 @@ from app.services.agent.config import (
     validate_model_config
 )
 from app.services.agent.graph import create_agent_graph, AgentState
-from app.services.agent.tools import generate_kundali_chart, query_knowledge_base, get_vimshottari_dasha
+from app.services.agent.tools import generate_kundali_chart, query_knowledge_base, get_vimshottari_dasha, get_varga_chart
 from app.services.agent.callbacks import AstroLoggerCallback
 from app.logger import get_logger, setup_logging
 
@@ -48,7 +48,7 @@ class AstrologyAgent:
         )
 
         # Get tools
-        self.tools = [generate_kundali_chart, query_knowledge_base, get_vimshottari_dasha]
+        self.tools = [generate_kundali_chart, query_knowledge_base, get_vimshottari_dasha, get_varga_chart]
 
         # Create and compile graph
         self.graph = create_agent_graph(self.llm, self.tools)
