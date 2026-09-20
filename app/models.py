@@ -101,15 +101,15 @@ class AshtakootaMatchScore(BaseModel):
     total: float = 0
 
 
-class NavamsaPlanetData(BaseModel):
+class VargaPlanetData(BaseModel):
     name: str
     zodiac: str
     house: int
 
 
-class NavamsaChart(BaseModel):
+class VargaChart(BaseModel):
     ascendant_sign: str
-    planets: Dict[str, NavamsaPlanetData]
+    planets: Dict[str, VargaPlanetData]
 
 
 class MangalDoshaResult(BaseModel):

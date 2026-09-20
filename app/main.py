@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import kundali, matchmaking
-from app.routes import auth, profile, conversations, compatibility
+from app.routes import auth, profile, conversations, compatibility, best_matches
 from app.core.limiter import limiter, rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -38,6 +38,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(conversations.router)
 app.include_router(compatibility.router)
+app.include_router(best_matches.router)
 
 
 @app.get("/")

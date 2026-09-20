@@ -8,6 +8,7 @@ import OnboardingPage from '@/pages/OnboardingPage'
 import ChatPage from '@/pages/ChatPage'
 import SettingsPage from '@/pages/SettingsPage'
 import PartnersPage from '@/pages/PartnersPage'
+import MatchesPage from '@/pages/MatchesPage'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/partners" element={<ProtectedRoute><PartnersPage /></ProtectedRoute>} />
           <Route path="/partners/:partnerId" element={<ProtectedRoute><PartnersPage /></ProtectedRoute>} />
+          <Route path="/best-matches" element={<ProtectedRoute><MatchesPage /></ProtectedRoute>} />
 
           {/* Default */}
           <Route path="*" element={<Navigate to="/chat" replace />} />

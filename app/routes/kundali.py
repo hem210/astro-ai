@@ -4,7 +4,7 @@ from fastapi.routing import APIRouter
 from app.services.coord_utils import get_coordinates
 from app.services.kundali_chart import planets_calculation
 from app.services.ashtakoota_services.generate_profile import generate_ashtakoota_profile
-from app.services.match_finder import find_perfect_match
+from app.services.match_finder import find_best_matches
 from app.models import APIBirthDetails, BirthChart, KundaliChart
 
 router = APIRouter()
@@ -59,7 +59,7 @@ def get_perfect_match(
         kundali_chart.nakshatra
     )
 
-    result = find_perfect_match(ashtakoota_profile, type)
+    result = find_best_matches(ashtakoota_profile, type)
 
     return {
         "result": result

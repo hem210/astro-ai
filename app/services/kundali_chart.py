@@ -1,6 +1,6 @@
 import swisseph as swe
 from datetime import datetime, timedelta
-from app.models import BirthChart, KundaliChart, NavamsaChart, NavamsaPlanetData, PlanetData
+from app.models import BirthChart, KundaliChart, VargaChart, VargaPlanetData, PlanetData
 from app.config import ZODIACS, PLANETS, NAKSHATRAS
 
 # Set the ayanamsa to Lahiri (sidereal)
@@ -140,20 +140,80 @@ def _d9_sign_num(longitude: float) -> int:
     return (_NAVAMSA_START[d1_sign] - 1 + pada) % 12 + 1
 
 
-def calculate_navamsa(kundali: KundaliChart) -> NavamsaChart:
+def calculate_navamsa(kundali: KundaliChart) -> VargaChart:
     asc_sign_num = _d9_sign_num(kundali.ascendant)
 
-    planets: dict[str, NavamsaPlanetData] = {}
+    planets: dict[str, VargaPlanetData] = {}
     for name, planet in kundali.planets.items():
         sign_num = _d9_sign_num(planet.position)
         house = (sign_num - asc_sign_num) % 12 + 1
-        planets[name] = NavamsaPlanetData(
+        planets[name] = VargaPlanetData(
             name=name,
             zodiac=ZODIACS[sign_num]["name"],
             house=house,
         )
 
-    return NavamsaChart(
+    return VargaChart(
+        ascendant_sign=ZODIACS[asc_sign_num]["name"],
+        planets=planets,
+    )
+
+
+# D10 starting sign per D1 sign
+# Odd sign  → sign itself
+# Even sign → 9th sign from it: (sign + 7) % 12 + 1
+_DASHAMSHA_START = {
+    1:  1,   2: 10,  3:  3,  4: 12,
+    5:  5,   6:  2,  7:  7,  8:  4,
+    9:  9,  10:  6, 11: 11, 12:  8,
+}
+
+
+def _d10_sign_num(longitude: float) -> int:
+    d1_sign = int(longitude / 30) + 1
+    pada = int((longitude % 30) / 3)        # 0–9, each pada = 3°
+    return (_DASHAMSHA_START[d1_sign] - 1 + pada) % 12 + 1
+
+
+def calculate_dashamsha(kundali: KundaliChart) -> VargaChart:
+    asc_sign_num = _d10_sign_num(kundali.ascendant)
+
+    planets: dict[str, VargaPlanetData] = {}
+    for name, planet in kundali.planets.items():
+        sign_num = _d10_sign_num(planet.position)
+        house = (sign_num - asc_sign_num) % 12 + 1
+        planets[name] = VargaPlanetData(
+            name=name,
+            zodiac=ZODIACS[sign_num]["name"],
+            house=house,
+        )
+
+    return VargaChart(
+        ascendant_sign=ZODIACS[asc_sign_num]["name"],
+        planets=planets,
+    )
+
+
+def _d12_sign_num(longitude: float) -> int:
+    d1_sign = int(longitude / 30) + 1
+    pada = int((longitude % 30) / 2.5)     # 0–11, each pada = 2°30'
+    return (d1_sign - 1 + pada) % 12 + 1
+
+
+def calculate_dvadashamsha(kundali: KundaliChart) -> VargaChart:
+    asc_sign_num = _d12_sign_num(kundali.ascendant)
+
+    planets: dict[str, VargaPlanetData] = {}
+    for name, planet in kundali.planets.items():
+        sign_num = _d12_sign_num(planet.position)
+        house = (sign_num - asc_sign_num) % 12 + 1
+        planets[name] = VargaPlanetData(
+            name=name,
+            zodiac=ZODIACS[sign_num]["name"],
+            house=house,
+        )
+
+    return VargaChart(
         ascendant_sign=ZODIACS[asc_sign_num]["name"],
         planets=planets,
     )
@@ -161,15 +221,15 @@ def calculate_navamsa(kundali: KundaliChart) -> NavamsaChart:
 
 if __name__ == "__main__":
     birth_chart = BirthChart(
-        year = 2025,
-        month = 11,
-        day = 23,
-        hour = 14,
-        minute = 4,
+        year = 1972,
+        month = 4,
+        day = 11,
+        hour = 11,
+        minute = 0,
         second = 0,
         timezone = 5.5, # GMT+5:30
-        latitude = 23.03,  # ahmedabad
-        longitude = 72.62,
+        latitude = 21.64,  # ahmedabad
+        longitude = 69.61,
     )
     
 
