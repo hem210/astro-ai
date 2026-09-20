@@ -64,11 +64,18 @@ interface MangalDoshaCompatibility {
   pairing: 'none' | 'balanced' | 'asymmetric'
 }
 
+interface DoshaInfo {
+  cancelled: boolean
+  cancellation_reason: string | null
+}
+
 interface CompatibilityState {
   score: CompatibilityScore | null
   conversation_id: string | null
   messages: { id: string; role: 'user' | 'assistant'; content: string }[]
   mangal_dosha: MangalDoshaCompatibility | null
+  nadi_dosha: DoshaInfo | null
+  bhakoota_dosha: DoshaInfo | null
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +259,35 @@ function MangalDoshaSection({ dosha, userName, partnerName }: {
       <div className="space-y-1.5">
         <DoshaRow result={dosha.user} name={userName} />
         <DoshaRow result={dosha.partner} name={partnerName} />
+      </div>
+    </>
+  )
+}
+
+function AshtakootaDoshaSection({ nadiDosha, bhakootaDosha }: {
+  nadiDosha: DoshaInfo | null
+  bhakootaDosha: DoshaInfo | null
+}) {
+  if (!nadiDosha && !bhakootaDosha) return null
+  return (
+    <>
+      <div className="border-t border-white/6 my-4" />
+      <div className="space-y-1.5">
+        {[{ label: 'Nadi Dosha', dosha: nadiDosha }, { label: 'Bhakoota Dosha', dosha: bhakootaDosha }].map(({ label, dosha }) => {
+          if (!dosha) return null
+          return (
+            <div key={label} className="flex items-center gap-1.5 text-xs">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dosha.cancelled ? 'bg-white/20' : 'bg-rose-400'}`} />
+              <span className="text-white/60">{label}</span>
+              <span className="text-white/15">·</span>
+              {dosha.cancelled ? (
+                <span className="text-emerald-400/60">Cancelled · {dosha.cancellation_reason}</span>
+              ) : (
+                <span className="text-rose-400/75 font-medium">Present · no cancellation applies</span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </>
   )
@@ -829,6 +865,10 @@ export default function PartnersPage() {
                       {compat?.score && (
                         <div className="rounded-2xl border border-white/8 p-4 mb-2" style={{ background: 'oklch(0.13 0 0)' }}>
                           <ScoreTable score={compat.score} />
+                          <AshtakootaDoshaSection
+                            nadiDosha={compat.nadi_dosha ?? null}
+                            bhakootaDosha={compat.bhakoota_dosha ?? null}
+                          />
                           {compat.mangal_dosha && (
                             <MangalDoshaSection
                               dosha={compat.mangal_dosha}

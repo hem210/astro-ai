@@ -44,11 +44,18 @@ class MangalDoshaCompatibilityResponse(BaseModel):
     pairing: str
 
 
+class DoshaInfoResponse(BaseModel):
+    cancelled: bool
+    cancellation_reason: str | None
+
+
 class CompatibilityStateResponse(BaseModel):
     score: CompatibilityScoreResponse | None
     conversation_id: uuid.UUID | None
     messages: list[CompatibilityMessageResponse]
     mangal_dosha: MangalDoshaCompatibilityResponse | None
+    nadi_dosha: DoshaInfoResponse | None
+    bhakoota_dosha: DoshaInfoResponse | None
 
 
 class CompatibilityChatRequest(BaseModel):

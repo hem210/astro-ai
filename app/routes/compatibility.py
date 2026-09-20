@@ -68,15 +68,18 @@ def get_compatibility(
     conv = _latest_conversation(partner_id, current_user.id, db)
     user_profile = db.query(BirthProfile).filter_by(user_id=current_user.id, type="primary").first()
 
-    score = partner.compatibility_score
+    stored_score = partner.compatibility_score
+    score_obj = AshtakootaMatchScore(**stored_score) if stored_score else None
 
-    mangal_dosha = compute_dosha_for_profiles(user_profile, partner)
+    mangal_dosha, nadi_dosha, bhakoota_dosha = compute_dosha_for_profiles(user_profile, partner, score_obj)
 
     return CompatibilityStateResponse(
-        score=score,
+        score=stored_score,
         conversation_id=conv.id if conv else None,
         messages=conv.messages if conv else [],
         mangal_dosha=mangal_dosha,
+        nadi_dosha=nadi_dosha,
+        bhakoota_dosha=bhakoota_dosha,
     )
 
 

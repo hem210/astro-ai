@@ -21,6 +21,7 @@ from app.services.chat import _MONTH_NAMES
 from app.services.coord_utils import get_coordinates
 from app.services.kundali_chart import planets_calculation
 from app.services.mangal_dosha import compute_mangal_dosha_compatibility
+from app.services.match_finder import nadi_dosha_info, bhakoota_dosha_info
 
 logger = get_logger("compatibility")
 
@@ -155,6 +156,18 @@ def _format_mangal_dosha(dosha: MangalDoshaCompatibility, user_label: str, partn
     )
 
 
+def _format_ashtakoota_doshas(nadi: dict | None, bhakoota: dict | None) -> str:
+    lines = []
+    for label, dosha in [("Nadi", nadi), ("Bhakoota", bhakoota)]:
+        if dosha is None:
+            lines.append(f"{label} Dosha: Not present (score > 0)")
+        elif dosha["cancelled"]:
+            lines.append(f"{label} Dosha: Present but cancelled — {dosha['cancellation_reason']}")
+        else:
+            lines.append(f"{label} Dosha: Present, not cancelled")
+    return "\n".join(lines)
+
+
 def build_compatibility_system_prompt(
     user_profile: BirthProfile,
     partner_profile: BirthProfile,
@@ -165,13 +178,20 @@ def build_compatibility_system_prompt(
     partner_ap, partner_chart = _get_profile_data(partner_profile)
     user_label = "GROOM" if user_profile.gender == "male" else "BRIDE"
     partner_label = "GROOM" if partner_profile.gender == "male" else "BRIDE"
-    dosha = compute_mangal_dosha_compatibility(user_chart, partner_chart)
+    mangal = compute_mangal_dosha_compatibility(user_chart, partner_chart)
+    nadi = nadi_dosha_info(
+        user_ap.moon_zodiac, user_ap.nakshatra,
+        partner_ap.moon_zodiac, partner_ap.nakshatra,
+        score.nadi,
+    )
+    bhakoota = bhakoota_dosha_info(score.bhakoota, score.graha_maitri)
     return (
         COMPATIBILITY_SYSTEM_PROMPT
         + f"\n\n### {user_label}'S BIRTH PROFILE\n{_format_birth_profile(user_profile)}\n{_format_ashtakoota_profile(user_ap)}"
         + f"\n\n### {partner_label}'S BIRTH PROFILE\n{_format_birth_profile(partner_profile)}\n{_format_ashtakoota_profile(partner_ap)}"
         + f"\n\n### ASHTAKOOTA COMPATIBILITY SCORE\n{_format_score(score)}"
-        + f"\n\n### MANGAL DOSHA\n{_format_mangal_dosha(dosha, user_label, partner_label)}"
+        + f"\n\n### ASHTAKOOTA DOSHAS\n{_format_ashtakoota_doshas(nadi, bhakoota)}"
+        + f"\n\n### MANGAL DOSHA\n{_format_mangal_dosha(mangal, user_label, partner_label)}"
         + f"\n\n### TODAY'S DATE\nToday is {today}."
     )
 
@@ -183,10 +203,21 @@ def build_compatibility_system_prompt(
 def compute_dosha_for_profiles(
     user_profile: BirthProfile,
     partner_profile: BirthProfile,
-) -> "MangalDoshaCompatibility":
-    _, user_chart = _get_profile_data(user_profile)
-    _, partner_chart = _get_profile_data(partner_profile)
-    return compute_mangal_dosha_compatibility(user_chart, partner_chart)
+    score: AshtakootaMatchScore | None = None,
+) -> tuple["MangalDoshaCompatibility", dict | None, dict | None]:
+    user_ap, user_chart = _get_profile_data(user_profile)
+    partner_ap, partner_chart = _get_profile_data(partner_profile)
+    mangal = compute_mangal_dosha_compatibility(user_chart, partner_chart)
+    if score is not None:
+        nadi = nadi_dosha_info(
+            user_ap.moon_zodiac, user_ap.nakshatra,
+            partner_ap.moon_zodiac, partner_ap.nakshatra,
+            score.nadi,
+        )
+        bhakoota = bhakoota_dosha_info(score.bhakoota, score.graha_maitri)
+    else:
+        nadi, bhakoota = None, None
+    return mangal, nadi, bhakoota
 
 
 # ---------------------------------------------------------------------------

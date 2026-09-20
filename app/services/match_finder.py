@@ -81,7 +81,7 @@ NAKSHATRA_SYLLABLES: dict[str, list[str]] = {
 # Match sweep
 # ---------------------------------------------------------------------------
 
-def _nadi_dosha_info(
+def nadi_dosha_info(
     person_rashi: str, person_nakshatra: str,
     candidate_rashi: str, candidate_nakshatra: str,
     nadi_score: float,
@@ -97,7 +97,7 @@ def _nadi_dosha_info(
     return {"cancelled": False, "cancellation_reason": None}
 
 
-def _bhakoota_dosha_info(bhakoota_score: float, graha_maitri_score: float) -> dict | None:
+def bhakoota_dosha_info(bhakoota_score: float, graha_maitri_score: float) -> dict | None:
     if bhakoota_score > 0:
         return None
     if graha_maitri_score == 5:
@@ -136,12 +136,12 @@ def find_best_matches(
             "nakshatra":      nakshatra,
             "syllables":      NAKSHATRA_SYLLABLES[nakshatra],
             "score":          score_obj,
-            "nadi_dosha":     _nadi_dosha_info(
+            "nadi_dosha":     nadi_dosha_info(
                                   person_profile.moon_zodiac, person_profile.nakshatra,
                                   rashi, nakshatra,
                                   score_obj.nadi,
                               ),
-            "bhakoota_dosha": _bhakoota_dosha_info(score_obj.bhakoota, score_obj.graha_maitri),
+            "bhakoota_dosha": bhakoota_dosha_info(score_obj.bhakoota, score_obj.graha_maitri),
         })
 
     return sorted(results, key=lambda x: x["score"].total, reverse=True)
