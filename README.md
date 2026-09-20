@@ -1,80 +1,94 @@
----
-title: Astro-AI
-emoji: 🌟
-colorFrom: blue
-colorTo: purple
-sdk: gradio
-python_version: 3.11.9
-sdk_version: 6.0.0
-app_file: app.py
-pinned: false
----
+# Astro AI
 
-# Astro-AI
+A full-stack Vedic astrology web application. It calculates natal charts, divisional charts, and matchmaking compatibility using Swiss Ephemeris, and provides an AI chat interface backed by a Vedic knowledge base.
 
-## Overview
+## What it does
 
-Astro-AI aims at simplifying Indian astrology-based matchmaking and charting, using traditional calculations enhanced with LLM-based natural language explanations for better accessibility.
-It's a FastAPI-based REST API framework which exposes APIs to generate readings and their explanation.
+The app is built around a logged-in user who has a birth profile. From that profile it computes their Kundali and lets them:
 
-## API Endpoints
+- **Chat with an AI astrologer** — a LangGraph agent that calls tools to generate the natal chart, query a curated Vedic knowledge base, compute Vimshottari dasha periods, and pull divisional charts (D9/D10/D12) depending on the question. Career questions get the Dashamsha, marriage questions get the Navamsa.
+- **Run partner compatibility** — add a partner's birth details, get an Ashtakoota score (0–36) across all 8 kootas, Mangal Dosha analysis with cancellation detection, and a streaming AI explanation of what the scores mean together.
+- **Find best matches** — sweeps all 36 Rashi-Nakshatra combinations, scores each against the user's profile, surfaces Nadi and Bhakoota doshas with cancellation logic, and shows the name syllables (namakarana aksharas) for each candidate.
 
-1. `/kundali`: Generates a detailed Kundali (natal chart), including planetary positions and house placements, based on date, time, and place of birth.
+## Vedic calculations
 
-2. `/ashtakoota-score`: Computes the Ashtakoota score for two individuals, covering all 8 compatibility dimensions used in Vedic matchmaking.
+All planetary positions use **Swiss Ephemeris** (`pyswisseph`) with the **Lahiri ayanamsa** (sidereal). Whole sign house system.
 
-3. `/my-perfect-match`: Returns top compatible Rashi-Nakshatra-NameLetters with score > 22 (which is deemed compatible as per Vedic astrology) for an individual, based on traditional Indian matchmaking principles.
+**Divisional charts** — all derived from D1 longitudes using classical Parashari rules:
+- D9 (Navamsa): element-based starting sign — fire→Aries, earth→Capricorn, air→Libra, water→Cancer; 9 padas of 3°20'
+- D10 (Dashamsha): odd signs start from themselves, even signs from the 9th sign; 10 padas of 3°
+- D12 (Dvadashamsha): every sign starts from itself; 12 padas of 2°30'
 
-4. `/ashtakoota-score-explain` (LLM-enhaced): Uses LLM Agents to provide a natural language explanation of the Ashtakoota score — breaking down how each dimension contributes and what it means for a relationship. This is the core feature aimed at demystifying traditional astrology.
+**Ashtakoota matching** — all 8 kootas scored: Varna (1), Vashya (2), Tara (3), Yoni (4), Graha Maitri (5), Gana (6), Bhakoota (7), Nadi (8). Max 36.
 
-## It's Live! Try it yourself
+**Dosha detection with cancellation:**
+- Nadi dosha cancelled when same Rashi + different Nakshatra, or same Nakshatra + different Rashi
+- Bhakoota dosha cancelled when Graha Maitri score is full (5/5)
+- Mangal dosha checked for both partners with severity (high/medium/mild) and classical cancellation conditions
 
-Swagger UI link: https://astro-ai-rffv.onrender.com/docs
+**Vimshottari dasha** — computed from Moon's nakshatra longitude; supports querying arbitrary date ranges for mahadasha/antardasha breakdown.
 
-Note: Since the project is hosted on Render, it scales down during inactivity. So, the first request might take around 1-2 minutes to come back.
+## Tech stack
 
-## Sample Results
+- **Backend**: FastAPI, SQLAlchemy, Alembic, PostgreSQL, Argon2, JWT (access + refresh tokens), SlowAPI
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, React Router
+- **AI**: LangGraph, LiteLLM (Gemini 2.5 Flash / Claude Sonnet), streaming SSE
+- **Astrology**: pyswisseph, geopy
 
-1. `/kundali`
-![alt text](app/docs_assets/kundali_api_response.png)
+## Running locally
 
-2. `/ashtakoota-score`
-![alt text](app/docs_assets/ashtakoota_score_api_response.png)
+### Backend
 
-3. `/my-perfect-match`
-![alt text](app/docs_assets/my_perfect_match_api_response.png)
+Requires Python 3.11+, PostgreSQL, and [`uv`](https://github.com/astral-sh/uv).
 
-4. `/ashtakoota-score-explain`
-![alt text](app/docs_assets/ashtakoota_score_explain_api_response.png)
-
-## Installing and Running Locally
-
-Run the following commands in your terminal to setu things up. By default the backend will be running at: http://127.0.0.1:8000
-
-Also, this application was compiled with Python v3.11.9. So any version equal or above it will be fine.
-```
+```bash
 git clone https://github.com/hem210/astro-ai.git
 cd astro-ai
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+
+cp .env.example .env
+# fill in DATABASE_URL, GEMINI_API_KEY or ANTHROPIC_API_KEY, JWT_SECRET_KEY
+
+uv sync
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-## Features & Capabilities
+Backend runs at `http://localhost:8000`.
 
-- **Vedic Astrology Calculations**: Uses the Swiss Ephemeris (with Lahiri sidereal system) for accurate planetary and house computations aligned with traditional Indian astrology.
+### Frontend
 
-- **Kundali Generation**: Computes detailed natal charts, including ascendants and planetary positions across houses.
+Requires Node 18+.
 
-- **Matchmaking Logic**: Implements classical Ashtakoota matching with an 8-dimension scoring system for compatibility.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-- **LLM-Based Explanation**: Core feature that uses a language model to explain the Ashtakoota score in plain language, making astrological insights accessible to non-experts.
+Frontend runs at `http://localhost:5173`.
 
-- **Personalized Match Suggestions**: Recommends compatible Rashi-Nakshatra pairs along with the Name letters for individuals based on traditional compatibility rules. This helps in easy identification of people based on names for compatibility (assuming people are named based on the appropriate letters of Rashi/Nakshatra).
+## Project structure
 
-## Future Improvements
+```
+app/
+  routes/          # FastAPI route handlers (auth, chat, compatibility, best-matches, …)
+  services/
+    agent/         # LangGraph agent — graph, tools, system prompt
+    ashtakoota_services/   # Koota scoring and profile generation
+    kundali_chart.py       # D1 + D9/D10/D12 calculations via swisseph
+    match_finder.py        # Best-matches sweep with dosha detection
+    vimshottari.py         # Dasha period computation
+  db/              # SQLAlchemy models and session
+  core/            # Auth, quota, rate limiting
+  data/            # vedic_knowledge_base.json
 
-- **Fix for Lagna (Ascendant) Calculation**: The current method for calculating the ascendant has some imprecision, which can affect the accuracy of house placements in the Kundali. Refining this logic will improve the accuracy of results.
+frontend/
+  src/
+    pages/         # ChatPage, PartnersPage, MatchesPage, OnboardingPage, …
+    components/    # shadcn/ui components
+    api/           # Axios client + SSE fetch helper
 
-- **Daily Personalized Suggestions**: Plan to add a feature that provides daily insights based on the user's current Mahadasha and Antardasha, helping users make day-to-day decisions guided by Vedic astrology.
+alembic/           # DB migrations
+scripts/           # Standalone chart verification scripts (D9, knowledge base generation)
+eph/               # Swiss Ephemeris data files (not tracked in git)
+```
